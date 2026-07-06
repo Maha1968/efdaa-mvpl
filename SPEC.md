@@ -1,0 +1,319 @@
+# EFDAA — MVP Build Playbook & Cursor Prompts (v3)
+
+A step-by-step guide for a non-technical founder to build the EFDAA MVP using Cursor.
+Save this file inside your project folder as `SPEC.md` so Cursor can always read it.
+
+> v3 adds: the originator never has to buy; location is captured at every claim (open);
+> and a proximity-time anti-collusion signal in the genuineness score. Still pilot-simple, no ML.
+> Location = free GPS coordinates + an optional place-name text field. No maps service needed
+> for the pilot (the genuineness math runs on coordinates + timestamps alone). The smart
+> "you're at X" place suggestion is a Phase 1 addition once the core loop works.
+
+---
+
+## 0. What we are building (the one-paragraph version)
+
+EFDAA is an **offline referral-attribution platform**. An *originator* — who does **not** have to
+buy anything — finds a product, **photographs the product and its barcode tag**, has their
+**location captured**, and generates a shareable **token** which they send (via WhatsApp) to
+contacts. Anyone who opens the link **claims** it (which captures *their* location and time) and
+can then **redeem** it (buy for themselves), **forward** it (pass it on), or **do both**. Every
+forward creates a *new child token* that remembers its *parent*, its *root* (the originator), and
+the claimer's location/time. Chains can be up to **5 people deep** and the whole chain **expires**
+a set number of hours after the originator created it (default 24h). When someone buys within the
+window they **upload the receipt**; we check the receipt's **barcode**, the **store/location**,
+the **timing**, and how much **real gap in space and time** exists between the people in the chain
+— then pay a **reward pool** split across the chain. The record of "who caused whom to buy, for
+which product, where, when, and how genuinely" is the real product: the **influence graph**.
+
+---
+
+## 1. The tools (accounts to create — all free for the pilot)
+
+| Tool | What it does | Why | Cost (pilot) |
+|------|--------------|-----|--------------|
+| **Cursor** | AI code editor (you have this) | Writes the code | — |
+| **GitHub** | Stores your code online | Bridge between Cursor and hosting | Free |
+| **Supabase** | Database + login + file storage | Runs the influence graph, plus photo & receipt uploads | Free |
+| **Vercel** | Hosting / deployment | Puts your app on the internet | Free |
+
+**Do NOT use yet:** graph database (Neo4j), paid WhatsApp API, automatic barcode/receipt reading
+(OCR), a maps/place-name service, any ML. These are Phase 2. In the pilot: barcodes and receipt
+details are entered/checked manually, and location is captured as raw GPS coordinates (free) plus
+an optional place-name the user can type.
+
+---
+
+## 2. The tech stack (what Cursor will build with)
+
+- **Next.js** (App Router) + **TypeScript** — one codebase.
+- **Supabase** — database (Postgres), auth (login), storage (product photos, barcode photos,
+  receipt images).
+- **Tailwind CSS** — clean styling.
+- **Browser Geolocation API** — free GPS capture on the phone (no maps service).
+- **Vercel** — deployment.
+
+You never write code. You describe what you want; Cursor writes it. Your job is to **test,
+describe problems clearly, and approve.**
+
+---
+
+## 3. The data model (the most important section)
+
+Copy this into Cursor as-is.
+
+### Tables
+
+**users** — `id`, `name`, `phone`, `created_at`
+
+**products** — `id`, `name`, `price`, `barcode` (canonical barcode/SKU to match receipts against)
+
+**offers** — `id`, `name`, `base_reward_pct` (e.g. 5%)
+
+**stores** — `id`, `name`, `address`, `lat`, `lng`
+
+**tokens** — the core of everything. Each row is one token held by one person, stamped with WHERE
+and WHEN that person claimed/created it.
+- `id`
+- `code` — the short shareable code inside the WhatsApp link
+- `holder_user_id`
+- `parent_token_id` — the token this was forwarded FROM (NULL if originator's token)
+- `root_token_id` — the originator's original token (same for the whole chain)
+- `depth` — 0 for originator, then 1..4. **Max depth 4 → chain of 5.**
+- `product_id`, `offer_id`
+- `scanned_barcode` — the barcode captured at share time (proof the sharer saw the product)
+- `product_photo_url`, `barcode_photo_url` — proof photos (Supabase Storage)
+- `claim_lat`, `claim_lng` — WHERE this person was when they claimed/created this token
+- `claim_location_text` — OPTIONAL place name the user typed (e.g. "Phoenix Mall")
+- `expires_at` — inherited from the root (root.created_at + validity window). Same for the chain.
+- `created_at` — WHEN this token was claimed/created (used for time-gap checks)
+
+**purchases** (the uploaded receipt)
+- `id`, `token_id`, `buyer_user_id`, `store_id`
+- `purchase_lat`, `purchase_lng` — where the purchase happened
+- `amount`, `receipt_image_url`, `receipt_barcode` (manual in pilot)
+- `status` — `pending` | `validated` | `rejected`
+- Signal flags (computed at validation):
+  - `barcode_match`, `store_match`, `within_window`
+  - `time_to_purchase_hours`
+  - `min_hop_distance_m` — smallest distance between any two consecutive people in the chain
+  - `min_hop_time_minutes` — smallest time gap between any two consecutive people in the chain
+- `genuineness_score` — 0.0–1.0, from Section 4
+- `created_at`
+
+**rewards** — `id`, `purchase_id`, `user_id`, `role`
+(`originator` | `forwarder` | `last_referrer` | `buyer`), `amount`, `created_at`
+
+### The lineage & expiry rules (enforce in code)
+1. **Originator** token: `parent_token_id = NULL`, `root_token_id = its own id`, `depth = 0`,
+   `expires_at = created_at + TOKEN_VALIDITY_HOURS`. Claim location = originator's GPS.
+   The originator does NOT buy.
+2. **Claim (open a link):** capture the claimer's GPS location + current time.
+3. **Forward:** create a NEW token — `parent_token_id = received token`,
+   `root_token_id = parent's root`, `depth = parent.depth + 1`, `expires_at = parent's expires_at`,
+   `claim_lat/lng` and `created_at` = the claimer's captured location + time.
+4. **Reject forwards where `depth > 4`.**
+5. **Reject any action after `expires_at`.** An expired link shows "This offer has expired."
+6. Trace a chain: from the redeemed token follow `parent_token_id` up to the root (recursive CTE).
+
+---
+
+## 4. Reward & genuineness logic (encode this exactly)
+
+### Step A — Genuineness score (deterministic, pilot version)
+Genuineness rewards purchases that look like real, independent word-of-mouth and penalizes ones
+that look self-dealing. Start at `1.0`, then apply these configurable adjustments:
+
+- If `within_window` is **false** → `genuineness_score = 0` (no reward).
+- If `barcode_match` is **false** → × `BARCODE_MISS_MULTIPLIER` (0.5).
+- If `store_match` is **false** → × `STORE_MISS_MULTIPLIER` (0.7).
+- **Proximity-time check (anti-collusion):** for each hop in the chain (originator → next →
+  … → buyer), compute the distance in metres and the time gap in minutes between the two people,
+  using their captured `claim_lat/lng` + `created_at` (and the buyer's purchase location/time).
+  If ANY hop is **both** too near (`distance < MIN_GENUINE_DISTANCE_METERS`) **and** too fast
+  (`gap < MIN_GENUINE_TIME_MINUTES`), it looks like one person with two phones or two people
+  standing together gaming the system → × `PROXIMITY_PENALTY_MULTIPLIER` (0.4). The penalty is
+  applied once, even if several hops look suspicious. Being far apart **or** having a real time
+  gap is enough to pass — genuine influence usually shows at least one of the two.
+
+Distance uses the Haversine formula on two lat/lng points (Cursor knows it). No maps service is
+needed — only the coordinates and timestamps already captured.
+
+### Step B — Reward pool & split
+When a purchase is marked **validated**:
+1. `base_pool = purchase.amount × offer.base_reward_pct × genuineness_score`
+2. Walk the token chain from the buyer's token up to the originator → ordered list of people.
+3. Roles: `buyer`, `last_referrer` (referred the buyer), `originator`, middle = `forwarder`.
+4. Split by weights: `buyer 4, last_referrer 3, originator 2, forwarder 1`.
+5. Each reward = `base_pool × (their weight ÷ sum of weights)`.
+6. One `rewards` row per person. **No validated purchase → no rewards.**
+
+### Config file (single place to tune everything)
+- `TOKEN_VALIDITY_HOURS` = 24
+- `BARCODE_MISS_MULTIPLIER` = 0.5
+- `STORE_MISS_MULTIPLIER` = 0.7
+- `MIN_GENUINE_DISTANCE_METERS` = 50
+- `MIN_GENUINE_TIME_MINUTES` = 30
+- `PROXIMITY_PENALTY_MULTIPLIER` = 0.4
+- reward weights: `buyer 4, last_referrer 3, originator 2, forwarder 1`
+- `base_reward_pct` (also stored per offer)
+
+---
+
+## 5. How to work with Cursor
+
+- Use **Agent mode**. Paste ONE stage at a time (Section 7).
+- After each stage: test, then tell Cursor to "commit and push to GitHub." Vercel auto-deploys.
+- Describe problems like a user; paste any red error text.
+- If Cursor drifts: "Re-read SPEC.md and continue."
+
+---
+
+## 6. Master context prompt (paste this FIRST, once)
+
+```
+You are helping me build the MVP for EFDAA, an offline referral-attribution web app.
+I am non-technical, so:
+- Explain what you are about to do in one plain sentence before each step.
+- Choose sensible defaults; do not ask me technical questions I can't answer.
+- Build a mobile-friendly web app using Next.js (App Router), TypeScript, Tailwind CSS,
+  and Supabase (database + auth + storage). Deploy target is Vercel.
+
+Read SPEC.md in this project (data model, lineage rules, expiry rules, and reward + genuineness
+logic) and follow it exactly. Key points:
+- The ORIGINATOR does not buy; they only photograph a product + its barcode and share.
+- A chain is at most 5 people deep (depth 0-4). Reject deeper forwards.
+- The chain expires TOKEN_VALIDITY_HOURS after the originator created it; after that, reject
+  actions and show expired links as expired.
+- Opening a link is a "claim" that captures the person's GPS location + time. Forwards create a
+  child token stamped with that location/time; it stores parent_token_id, root_token_id, and
+  inherits expires_at.
+- Location is captured as free GPS coordinates via the browser Geolocation API, plus an optional
+  place-name text field. Do NOT use a paid maps service in the pilot.
+- Purchases upload a receipt and record store, location, and the receipt barcode.
+- Rewards are only created for a 'validated' purchase, and the pool is scaled by a deterministic
+  genuineness_score: barcode match, store match, within window, and a proximity-time
+  anti-collusion penalty (too near AND too fast between people in the chain lowers the score).
+
+Set up the project structure now. Do not build features yet — scaffold, install dependencies,
+confirm it runs, then wait.
+```
+
+---
+
+## 7. The build, stage by stage (paste one block per turn)
+
+### Stage 0 — Scaffold & first deploy
+```
+Create the Next.js + TypeScript + Tailwind project and get it running locally. Then walk me,
+step by step in plain language, through: (1) pushing to a new GitHub repository, and
+(2) connecting that repo to Vercel for a live URL. Give exact buttons to click. Confirm live.
+```
+
+### Stage 1 — Connect Supabase & log in
+```
+Connect the app to my Supabase project. Tell me exactly which values to copy from my Supabase
+dashboard and where to paste them (.env.local). Then build a simple phone-or-email login/signup
+with Supabase Auth and a logged-in home screen showing the user's name. Mobile-first.
+```
+
+### Stage 2 — Create the database tables & config
+```
+Using the data model in SPEC.md, generate the SQL to create all tables (users, products, offers,
+stores, tokens, purchases, rewards) with the exact columns, including barcode, photo URLs,
+claim_lat/lng, claim_location_text, expires_at, purchase location, the signal flags, and
+genuineness_score. Tell me exactly where to paste the SQL in Supabase. Set up Storage buckets for
+product photos, barcode photos, and receipts. Create the config file from SPEC.md Section 4 with
+all the tunable numbers. Insert 2 sample products (each with a barcode), 1 sample offer (5%), and
+1 sample store with a location, for testing.
+```
+
+### Stage 3 — Originator creates & shares a token (no purchase needed)
+```
+Build the "create a token" flow. The originator does NOT buy anything. They: pick a product/offer,
+take/upload a photo of the product and a photo of its barcode, enter or capture the barcode number,
+and the app captures their current GPS location via the browser Geolocation API (ask permission),
+plus an OPTIONAL free-text field for the place name (e.g. "Phoenix Mall"). Create a token with
+parent_token_id = NULL, root_token_id = its own id, depth = 0, the barcode, the two photo URLs,
+claim_lat/lng, claim_location_text, and expires_at = now + TOKEN_VALIDITY_HOURS. Then show a
+"Share on WhatsApp" button (wa.me link) whose message contains a link to our app with the token
+code. Mobile-first. Do not use any paid maps service — just raw coordinates.
+```
+
+### Stage 4 — Claim a token: capture location, then Redeem / Forward / Both
+```
+Build the screen shown when a person opens a shared token link. First check expiry: if now is past
+expires_at, show "This offer has expired" and stop. Otherwise show a "Claim" step that captures the
+person's current GPS location + time (browser Geolocation, ask permission) and an OPTIONAL
+place-name field. After claiming, offer three choices: Redeem, Forward, or Redeem + Forward.
+- Forward: create a NEW token with parent_token_id = the received token, root_token_id = parent's
+  root, depth = parent.depth + 1, expires_at = parent's expires_at, and claim_lat/lng + created_at
+  set to this claimer's captured location + time. Block if depth would exceed 4 ("This chain has
+  reached its maximum length"). Then show a WhatsApp share button.
+- Redeem: go to the purchase flow (next stage).
+Every new token must remember its parent, root, expiry, and the claimer's location + time.
+```
+
+### Stage 5 — Purchase & receipt upload (manual validation)
+```
+Build the purchase flow for a redeemed token: the buyer selects the store, the app captures their
+current GPS location, they enter the amount, enter the barcode shown on the receipt, and upload a
+photo of the receipt (Supabase Storage). Create a purchases row with status 'pending' and record
+time_to_purchase_hours (from the originator's token creation to now). Then build a simple admin
+page (only visible to me) listing pending purchases with the receipt image and captured details,
+with Validate / Reject buttons. On Validate, compute the signal flags (barcode_match, store_match,
+within_window) and the min hop distance/time across the chain before running rewards.
+```
+
+### Stage 6 — Genuineness, attribution & reward split
+```
+When a purchase is set to 'validated', follow SPEC.md Section 4 exactly:
+A) Compute genuineness_score: if within_window is false, score = 0; else start at 1.0, then
+   × BARCODE_MISS_MULTIPLIER if barcode doesn't match, × STORE_MISS_MULTIPLIER if store doesn't
+   match, and × PROXIMITY_PENALTY_MULTIPLIER if ANY hop between consecutive people in the chain is
+   BOTH closer than MIN_GENUINE_DISTANCE_METERS AND faster than MIN_GENUINE_TIME_MINUTES (use the
+   Haversine distance on their claim/purchase coordinates and the time between their timestamps).
+B) base_pool = amount × offer.base_reward_pct × genuineness_score.
+C) Walk the chain to the root (recursive query), assign roles (buyer, last_referrer, originator,
+   forwarder), and split base_pool by weights (buyer 4, last_referrer 3, originator 2, forwarder 1).
+D) Write one rewards row per person. Read all tunable numbers from the config file.
+Show me the genuineness_score, the hop distances/times that drove it, and who got paid what.
+```
+
+### Stage 7 — See the chain (simple dashboard)
+```
+Build a dashboard where I can: view any token's full chain from originator to buyer (product,
+barcode, each person's location + time, and expiry); see all validated purchases with their
+genuineness_score (and why) and rewards paid; and a leaderboard of users by total reward earned.
+Clean and readable. This is the seed of the influence graph.
+```
+
+---
+
+## 8. Testing checklist (do after each stage)
+
+- [ ] Stage 0: Live Vercel URL loads.
+- [ ] Stage 1: I can sign up, log in, see my name.
+- [ ] Stage 2: All tables + storage buckets + config exist, with sample data.
+- [ ] Stage 3: I can create a token as originator (no purchase) with product photo, barcode photo,
+      GPS location, optional place name, and expiry — and share it.
+- [ ] Stage 4: Claiming captures my location + time; forwarding creates a new token; depth
+      increases; the 5-person cap blocks; an EXPIRED link shows as expired and does nothing.
+- [ ] Stage 5: A receipt uploads with store, GPS location, and receipt barcode; I can validate/reject.
+- [ ] Stage 6: Genuineness scores correctly — a right-product/right-store/in-window purchase with a
+      real distance or time gap = high; a wrong barcode, wrong store, out-of-window, OR
+      same-place-and-same-minute chain = lower/zero. Rewards split correctly.
+- [ ] Stage 7: I can trace any full chain and see the leaderboard.
+
+---
+
+## 9. What comes AFTER the pilot
+
+- **Phase 1:** The smart "you're at X" place suggestion (via a maps/place service, snapping to
+  known stores), fraud rules beyond proximity (self-referral rings, repeated pairs), a retailer
+  dashboard, and scaling to more stores.
+- **Phase 2:** Automatic barcode + receipt reading (OCR/vision), a learned genuineness model,
+  multi-touch attribution, and a graph database if the influence graph grows very large.
+
+Keep this file as your single source of truth. At the start of any new Cursor session, tell it to
+re-read SPEC.md first.
