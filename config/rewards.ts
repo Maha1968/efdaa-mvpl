@@ -1,17 +1,31 @@
 /**
- * Reward pool configuration — tune payouts here without touching app logic.
- * See SPEC.md Section 4.
+ * EFDAA tunable configuration — the single place to change payout & genuineness rules.
+ * See SPEC.md Section 4. Changing these numbers changes app behaviour without touching logic.
  */
-export const REWARD_CONFIG = {
-  /** Default offer base reward (e.g. 0.05 = 5% of purchase amount) */
-  defaultBaseRewardPct: 0.05,
-  roleWeights: {
-    buyer: 4,
-    last_referrer: 3,
-    originator: 2,
-    forwarder: 1,
-  },
-} as const;
 
-/** Maximum token chain depth (0 = originator → 4 = 5th person). */
+/** Maximum token chain depth (0 = originator → 4 = 5th person → chain of 5). */
 export const MAX_TOKEN_DEPTH = 4;
+
+/** How long a whole chain stays valid after the originator creates it. */
+export const TOKEN_VALIDITY_HOURS = 24;
+
+/** Default offer base reward (0.05 = 5% of purchase amount). Also stored per offer. */
+export const DEFAULT_BASE_REWARD_PCT = 0.05;
+
+/** Genuineness score multipliers (applied to a base of 1.0). */
+export const BARCODE_MISS_MULTIPLIER = 0.5;
+export const STORE_MISS_MULTIPLIER = 0.7;
+export const PROXIMITY_PENALTY_MULTIPLIER = 0.4;
+
+/** Anti-collusion thresholds: a hop that is BOTH nearer than this AND faster than the
+ *  time threshold looks like gaming and triggers the proximity penalty. */
+export const MIN_GENUINE_DISTANCE_METERS = 50;
+export const MIN_GENUINE_TIME_MINUTES = 30;
+
+/** Reward split weights by role. The ends of the chain earn the most. */
+export const ROLE_WEIGHTS = {
+  buyer: 4,
+  last_referrer: 3,
+  originator: 2,
+  forwarder: 1,
+} as const;
