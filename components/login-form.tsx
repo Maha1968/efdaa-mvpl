@@ -7,8 +7,6 @@ type AuthMode = "signin" | "signup";
 type AuthMethod = "email" | "phone";
 
 export function LoginForm() {
-  const supabase = createClient();
-
   const [method, setMethod] = useState<AuthMethod>("email");
   const [mode, setMode] = useState<AuthMode>("signin");
   const [name, setName] = useState("");
@@ -26,6 +24,8 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
     setMessage(null);
+
+    const supabase = createClient();
 
     if (mode === "signup") {
       const { error: signUpError } = await supabase.auth.signUp({
@@ -64,6 +64,7 @@ export function LoginForm() {
     setError(null);
     setMessage(null);
 
+    const supabase = createClient();
     const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
@@ -86,6 +87,7 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
 
+    const supabase = createClient();
     const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
 
     const { error: verifyError } = await supabase.auth.verifyOtp({

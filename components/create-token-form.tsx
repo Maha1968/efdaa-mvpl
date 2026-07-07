@@ -17,8 +17,6 @@ export function CreateTokenForm({
   offers,
   userId,
 }: CreateTokenFormProps) {
-  const supabase = createClient();
-
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
   const [barcode, setBarcode] = useState(products[0]?.barcode ?? "");
@@ -68,6 +66,7 @@ export function CreateTokenForm({
   }
 
   async function uploadPhoto(bucket: string, file: File) {
+    const supabase = createClient();
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${userId}/${Date.now()}-${safeName}`;
     const { error: uploadError } = await supabase.storage
