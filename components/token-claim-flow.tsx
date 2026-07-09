@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { LocationCapture } from "@/components/location-capture";
 import { forwardToken } from "@/lib/actions/tokens";
 import type { TokenWithDetails } from "@/lib/tokens/helpers";
@@ -9,11 +10,14 @@ import { canForwardToken } from "@/lib/tokens/helpers";
 
 type TokenClaimFlowProps = {
   token: TokenWithDetails;
+  alreadyRedeemed: boolean;
 };
 
-export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
+export function TokenClaimFlow({
+  token,
+  alreadyRedeemed,
+}: TokenClaimFlowProps) {
   const router = useRouter();
-  const [step, setStep] = useState<"claim" | "actions">("claim");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -21,20 +25,11 @@ export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const forwardAllowed = canForwardToken(token.depth);
+  const shareAllowed = canForwardToken(token.depth);
 
-  function handleClaimContinue() {
-    setError(null);
+  async function handleShare() {
     if (!coords) {
-      setError("Please capture your location before continuing.");
-      return;
-    }
-    setStep("actions");
-  }
-
-  async function handleForward(andRedeem: boolean) {
-    if (!coords) {
-      setError("Location is required.");
+      setError("Please capture your location before sharing.");
       return;
     }
 
@@ -54,20 +49,8 @@ export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
       return;
     }
 
-    if (andRedeem) {
-      router.push(`/redeem/${token.code}?shared=${result.code}`);
-      return;
-    }
-
-    router.push(`/create/${result.code}`);
-  }
-
-  function handleRedeemOnly() {
-    if (!coords) {
-      setError("Please capture your location first.");
-      return;
-    }
-    router.push(`/redeem/${token.code}`);
+    const from = encodeURIComponent(`/t/${token.code}`);
+    router.push(`/create/${result.code}?from=${from}`);
   }
 
   return (
@@ -82,7 +65,8 @@ export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
         )}
         {token.offer && (
           <p className="mt-2 text-sm text-emerald-700">
-            {(token.offer.base_reward_pct * 100).toFixed(0)}% reward pool on purchase
+            {(token.offer.base_reward_pct * 100).toFixed(0)}% reward pool on
+            purchase
           </p>
         )}
         <p className="mt-4 text-xs text-zinc-500">
@@ -90,15 +74,25 @@ export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
         </p>
       </div>
 
-      {step === "claim" ? (
-        <>
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900">Claim this offer</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Capture where you are right now to claim this token.
-            </p>
-          </div>
+      {alreadyRedeemed && (
+        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          You&apos;ve already redeemed this token. You can still share it with
+          others while it&apos;s active.
+        </p>
+      )}
 
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-900">
+          Share or redeem
+        </h2>
+        <p className="mt-1 text-sm text-zinc-600">
+          Share and redeem are independent — share as many times as you like, but
+          you can only redeem once.
+        </p>
+      </div>
+
+      {shareAllowed && (
+        <>
           <LocationCapture
             coords={coords}
             onCoordsChange={setCoords}
@@ -107,79 +101,41 @@ export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
             onError={setError}
           />
 
-          {error && (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
           <button
             type="button"
-            onClick={handleClaimContinue}
-            className="w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
+            onClick={handleShare}
+            disabled={loading}
+            className="w-full rounded-xl border border-emerald-700 bg-white px-4 py-3.5 text-base font-medium text-emerald-800 transition-colors hover:bg-emerald-50 disabled:opacity-60"
           >
-            Continue
+            {loading ? "Creating link..." : "Share"}
           </button>
         </>
+      )}
+
+      {!shareAllowed && (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          This chain has reached its maximum length. You can still redeem, but
+          cannot share further.
+        </p>
+      )}
+
+      {!alreadyRedeemed ? (
+        <Link
+          href={`/redeem/${token.code}`}
+          className="flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
+        >
+          Redeem
+        </Link>
       ) : (
-        <>
-          <div>
-            <h2 className="text-lg font-semibold text-zinc-900">What would you like to do?</h2>
-            <p className="mt-1 text-sm text-zinc-600">
-              Redeem for yourself, share it, or both.
-            </p>
-          </div>
+        <p className="text-center text-sm text-zinc-500">
+          Redeem is no longer available for this token.
+        </p>
+      )}
 
-          {error && (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          )}
-
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={handleRedeemOnly}
-              disabled={loading}
-              className="w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
-            >
-              Redeem
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleForward(false)}
-              disabled={loading || !forwardAllowed}
-              className="w-full rounded-xl border border-emerald-700 bg-white px-4 py-3.5 text-base font-medium text-emerald-800 transition-colors hover:bg-emerald-50 disabled:opacity-60"
-            >
-              Share
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleForward(true)}
-              disabled={loading || !forwardAllowed}
-              className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3.5 text-base font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-60"
-            >
-              Redeem + Share
-            </button>
-          </div>
-
-          {!forwardAllowed && (
-            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              This chain has reached its maximum length. You can still redeem, but
-              cannot share further.
-            </p>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setStep("claim")}
-            className="w-full text-sm text-zinc-500 underline"
-          >
-            Back to location
-          </button>
-        </>
+      {error && (
+        <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </p>
       )}
     </div>
   );

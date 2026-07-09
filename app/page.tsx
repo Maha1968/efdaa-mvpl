@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/actions/auth";
+import { isAdminUser } from "@/lib/auth/admin";
 
 function getDisplayName(user: {
   user_metadata?: { name?: string };
@@ -22,6 +23,7 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   const displayName = user ? getDisplayName(user) : "there";
+  const isAdmin = await isAdminUser();
 
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
@@ -63,6 +65,15 @@ export default async function Home() {
             </div>
           )}
         </div>
+
+        {isAdmin && (
+          <Link
+            href="/admin/purchases"
+            className="mb-6 flex w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-3.5 text-base font-medium text-zinc-800 transition-colors hover:bg-zinc-50"
+          >
+            Review pending purchases
+          </Link>
+        )}
 
         <form action={signOut} className="mt-6">
           <button

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TokenClaimFlow } from "@/components/token-claim-flow";
 import { isTokenExpired } from "@/lib/tokens/helpers";
+import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
 import { notFound } from "next/navigation";
 
 type PageProps = {
@@ -71,9 +72,10 @@ export default async function TokenLandingPage({ params }: PageProps) {
     );
   }
 
-  const [{ data: product }, { data: offer }] = await Promise.all([
+  const [{ data: product }, { data: offer }, alreadyRedeemed] = await Promise.all([
     supabase.from("products").select("name, price, barcode").eq("id", token.product_id).single(),
     supabase.from("offers").select("name, base_reward_pct").eq("id", token.offer_id).single(),
+    hasTokenBeenRedeemed(supabase, token.id),
   ]);
 
   return (
@@ -96,6 +98,7 @@ export default async function TokenLandingPage({ params }: PageProps) {
               product: product ?? null,
               offer: offer ?? null,
             }}
+            alreadyRedeemed={alreadyRedeemed}
           />
         </div>
       </div>

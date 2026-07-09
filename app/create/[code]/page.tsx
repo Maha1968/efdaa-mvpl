@@ -7,10 +7,15 @@ import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ code: string }>;
+  searchParams: Promise<{ from?: string }>;
 };
 
-export default async function TokenCreatedPage({ params }: PageProps) {
+export default async function TokenCreatedPage({
+  params,
+  searchParams,
+}: PageProps) {
   const { code } = await params;
+  const { from } = await searchParams;
   const supabase = await createClient();
 
   const { data: token } = await supabase
@@ -75,6 +80,15 @@ export default async function TokenCreatedPage({ params }: PageProps) {
 
         <div className="mt-6 space-y-3">
           <ShareOnWhatsApp code={code} productName={productName} />
+
+          {from?.startsWith("/t/") && (
+            <Link
+              href={from}
+              className="block w-full rounded-xl border border-emerald-700 bg-white px-4 py-3 text-center text-base font-medium text-emerald-800 transition-colors hover:bg-emerald-50"
+            >
+              Share again from original token
+            </Link>
+          )}
 
           <Link
             href="/create"

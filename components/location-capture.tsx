@@ -8,6 +8,7 @@ type LocationCaptureProps = {
   locationText: string;
   onLocationTextChange: (text: string) => void;
   onError?: (message: string) => void;
+  showPlaceName?: boolean;
 };
 
 export function LocationCapture({
@@ -16,6 +17,7 @@ export function LocationCapture({
   locationText,
   onLocationTextChange,
   onError,
+  showPlaceName = true,
 }: LocationCaptureProps) {
   const [locating, setLocating] = useState(false);
 
@@ -73,22 +75,24 @@ export function LocationCapture({
         </p>
       )}
 
-      <div className="mt-4">
-        <label
-          htmlFor="claim-location-text"
-          className="mb-1.5 block text-sm font-medium text-zinc-700"
-        >
-          Place name <span className="font-normal text-zinc-400">(optional)</span>
-        </label>
-        <input
-          id="claim-location-text"
-          type="text"
-          value={locationText}
-          onChange={(e) => onLocationTextChange(e.target.value)}
-          placeholder='e.g. "Phoenix Mall"'
-          className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-        />
-      </div>
+      {showPlaceName && (
+        <div className="mt-4">
+          <label
+            htmlFor="claim-location-text"
+            className="mb-1.5 block text-sm font-medium text-zinc-700"
+          >
+            Place name <span className="font-normal text-zinc-400">(optional)</span>
+          </label>
+          <input
+            id="claim-location-text"
+            type="text"
+            value={locationText}
+            onChange={(e) => onLocationTextChange(e.target.value)}
+            placeholder='e.g. "Phoenix Mall"'
+            className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          />
+        </div>
+      )}
     </div>
   );
 }

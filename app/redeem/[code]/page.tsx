@@ -1,19 +1,24 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { ShareOnWhatsApp } from "@/components/share-on-whatsapp";
+import { RedeemForm } from "@/components/redeem-form";
 import { isTokenExpired } from "@/lib/tokens/helpers";
-import { notFound } from "next/navigation";
+import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
+import { notFound, redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ code: string }>;
-  searchParams: Promise<{ shared?: string }>;
 };
 
-/** Stage 5 placeholder — full purchase flow comes next. */
-export default async function RedeemPage({ params, searchParams }: PageProps) {
+export default async function RedeemPage({ params }: PageProps) {
   const { code } = await params;
-  const { shared } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(`/login?next=/redeem/${code}`);
+  }
 
   const { data: token } = await supabase
     .from("tokens")
@@ -22,14 +27,6 @@ export default async function RedeemPage({ params, searchParams }: PageProps) {
     .single();
 
   if (!token) notFound();
-
-  const { data: product } = await supabase
-    .from("products")
-    .select("name")
-    .eq("id", token.product_id)
-    .single();
-
-  const productName = product?.name ?? "this product";
 
   if (isTokenExpired(token.expires_at)) {
     return (
@@ -46,35 +43,72 @@ export default async function RedeemPage({ params, searchParams }: PageProps) {
     );
   }
 
+  if (await hasTokenBeenRedeemed(supabase, token.id)) {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
+        <div className="w-full max-w-md text-center">
+          <h1 className="text-2xl font-semibold text-zinc-900">
+            Already redeemed
+          </h1>
+          <p className="mt-3 text-sm text-zinc-600">
+            This token has already been redeemed. You can still share it with
+            others.
+          </p>
+          <Link
+            href={`/t/${code}`}
+            className="mt-6 inline-block w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white"
+          >
+            Back to token — share again
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  const [{ data: product }, { data: stores }] = await Promise.all([
+    supabase.from("products").select("*").eq("id", token.product_id).single(),
+    supabase.from("stores").select("*").order("name"),
+  ]);
+
+  if (!product || !stores?.length) {
+    return (
+      <main className="flex flex-1 flex-col px-6 py-10">
+        <div className="mx-auto w-full max-w-md text-center">
+          <h1 className="text-xl font-semibold text-zinc-900">Setup incomplete</h1>
+          <p className="mt-2 text-sm text-zinc-600">
+            Product or store data is missing in Supabase.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
       <div className="mx-auto w-full max-w-md">
-        <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
-          Redeem
-        </p>
-        <h1 className="mt-3 text-2xl font-semibold text-zinc-900">
-          Purchase flow
-        </h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          You chose to redeem <strong>{productName}</strong>. The full receipt
-          upload flow arrives in Stage 5.
-        </p>
-
-        {shared && (
-          <div className="mt-6 space-y-3 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-zinc-700">
-              Your new token is ready to share
-            </p>
-            <ShareOnWhatsApp code={shared} productName={productName} />
-          </div>
-        )}
-
-        <Link
-          href="/"
-          className="mt-6 block w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-center text-base font-medium text-zinc-700"
-        >
-          Back home
+        <Link href={`/t/${code}`} className="text-sm text-emerald-700 underline">
+          ← Back to token
         </Link>
+
+        <div className="mb-8 mt-4">
+          <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
+            Redeem
+          </p>
+          <h1 className="mt-3 text-2xl font-semibold text-zinc-900">
+            Submit your purchase
+          </h1>
+          <p className="mt-2 text-sm text-zinc-600">
+            Select the store, capture your location, enter the receipt details,
+            and upload a photo of your bill. You can only redeem this token once.
+          </p>
+        </div>
+
+        <RedeemForm
+          tokenCode={code}
+          product={product}
+          stores={stores}
+          userId={user.id}
+        />
       </div>
     </main>
   );
