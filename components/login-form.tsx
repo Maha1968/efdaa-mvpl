@@ -6,7 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 type AuthMode = "signin" | "signup";
 type AuthMethod = "email" | "phone";
 
-export function LoginForm() {
+type LoginFormProps = {
+  nextUrl?: string;
+};
+
+export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
   const [method, setMethod] = useState<AuthMethod>("email");
   const [mode, setMode] = useState<AuthMode>("signin");
   const [name, setName] = useState("");
@@ -51,7 +55,7 @@ export function LoginForm() {
       if (signInError) {
         setError(signInError.message);
       } else {
-        window.location.href = "/";
+        window.location.href = nextUrl;
       }
     }
 
@@ -102,7 +106,7 @@ export function LoginForm() {
       return;
     }
 
-    window.location.href = "/";
+    window.location.href = nextUrl;
   }
 
   return (

@@ -16,6 +16,13 @@ export type CreateTokenInput = {
   claimLocationText?: string;
 };
 
+export type ForwardTokenInput = {
+  parentCode: string;
+  claimLat: number;
+  claimLng: number;
+  claimLocationText?: string;
+};
+
 export async function createOriginatorToken(input: CreateTokenInput) {
   const supabase = await createClient();
   const {
@@ -74,6 +81,74 @@ export async function createOriginatorToken(input: CreateTokenInput) {
     }
 
     redirect(`/create/${code}`);
+  }
+
+  return { error: "Could not generate a unique token code. Please try again." };
+}
+
+export async function forwardToken(input: ForwardTokenInput) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "You must be signed in to forward a token." };
+  }
+
+  const { data: parent, error: parentError } = await supabase
+    .from("tokens")
+    .select("*")
+    .eq("code", input.parentCode)
+    .single();
+
+  if (parentError || !parent) {
+    return { error: "Token not found." };
+  }
+
+  if (new Date(parent.expires_at).getTime() <= Date.now()) {
+    return { error: "This offer has expired." };
+  }
+
+  if (parent.depth >= 4) {
+    return { error: "This chain has reached its maximum length." };
+  }
+
+  let code = generateTokenCode();
+  let attempts = 0;
+
+  while (attempts < 5) {
+    const { data: child, error: insertError } = await supabase
+      .from("tokens")
+      .insert({
+        code,
+        holder_user_id: user.id,
+        parent_token_id: parent.id,
+        root_token_id: parent.root_token_id ?? parent.id,
+        depth: parent.depth + 1,
+        product_id: parent.product_id,
+        offer_id: parent.offer_id,
+        scanned_barcode: parent.scanned_barcode,
+        product_photo_url: parent.product_photo_url,
+        barcode_photo_url: parent.barcode_photo_url,
+        claim_lat: input.claimLat,
+        claim_lng: input.claimLng,
+        claim_location_text: input.claimLocationText || null,
+        expires_at: parent.expires_at,
+      })
+      .select("code")
+      .single();
+
+    if (insertError) {
+      if (insertError.code === "23505") {
+        code = generateTokenCode();
+        attempts++;
+        continue;
+      }
+      return { error: insertError.message };
+    }
+
+    return { code: child.code };
   }
 
   return { error: "Could not generate a unique token code. Please try again." };
