@@ -126,7 +126,7 @@ export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">What would you like to do?</h2>
             <p className="mt-1 text-sm text-zinc-600">
-              Redeem for yourself, pass it on, or both.
+              Redeem for yourself, share it, or both.
             </p>
           </div>
 
@@ -152,7 +152,7 @@ export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
               disabled={loading || !forwardAllowed}
               className="w-full rounded-xl border border-emerald-700 bg-white px-4 py-3.5 text-base font-medium text-emerald-800 transition-colors hover:bg-emerald-50 disabled:opacity-60"
             >
-              Forward
+              Share
             </button>
 
             <button
@@ -161,14 +161,14 @@ export function TokenClaimFlow({ token }: TokenClaimFlowProps) {
               disabled={loading || !forwardAllowed}
               className="w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3.5 text-base font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-60"
             >
-              Redeem + Forward
+              Redeem + Share
             </button>
           </div>
 
           {!forwardAllowed && (
             <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
               This chain has reached its maximum length. You can still redeem, but
-              cannot forward further.
+              cannot share further.
             </p>
           )}
 

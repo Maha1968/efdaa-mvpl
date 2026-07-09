@@ -43,7 +43,7 @@ export default async function TokenCreatedPage({ params }: PageProps) {
           </h1>
           <p className="mt-2 text-sm text-zinc-600">
             Send this link via WhatsApp. Anyone who opens it can claim, redeem,
-            or forward it.
+            or share it.
           </p>
         </div>
 

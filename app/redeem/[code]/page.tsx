@@ -63,7 +63,7 @@ export default async function RedeemPage({ params, searchParams }: PageProps) {
         {shared && (
           <div className="mt-6 space-y-3 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
             <p className="text-sm font-medium text-zinc-700">
-              Your forwarded token is ready to share
+              Your new token is ready to share
             </p>
             <ShareOnWhatsApp code={shared} productName={productName} />
           </div>
