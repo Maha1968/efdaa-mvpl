@@ -134,8 +134,8 @@ export default async function AdminOverviewPage() {
         <p className="mt-3 text-xs text-zinc-500">
           Opens = rows in referral_events with type opened. Forwards = tokens at
           depth 1+. If Opens stays at 0, the referral_events table is usually
-          missing — run supabase/schema_stage7a.sql (then schema_demo.sql) in
-          Supabase SQL Editor, then Reset + Load.
+          missing — run supabase/schema_stage7a.sql (then schema_demo.sql, then
+          schema_stage7h.sql) in Supabase SQL Editor, then Reset + Load.
         </p>
 
         <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">

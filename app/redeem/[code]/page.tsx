@@ -68,18 +68,33 @@ export default async function RedeemPage({ params }: PageProps) {
     );
   }
 
-  const [{ data: product }, { data: stores }] = await Promise.all([
+  const [{ data: product }, { data: rootToken }] = await Promise.all([
     supabase.from("products").select("*").eq("id", token.product_id).single(),
-    supabase.from("stores").select("*").order("name"),
+    supabase
+      .from("tokens")
+      .select("originator_store_id")
+      .eq("id", token.root_token_id ?? token.id)
+      .single(),
   ]);
 
-  if (!product || !stores?.length) {
+  const originatorStoreId =
+    rootToken?.originator_store_id ?? token.originator_store_id ?? null;
+
+  const { data: originatorStore } = originatorStoreId
+    ? await supabase
+        .from("stores")
+        .select("*")
+        .eq("id", originatorStoreId)
+        .single()
+    : { data: null };
+
+  if (!product || !originatorStore) {
     return (
       <main className="flex flex-1 flex-col px-6 py-10">
         <div className="mx-auto w-full max-w-md text-center">
           <h1 className="text-xl font-semibold text-zinc-900">Setup incomplete</h1>
           <p className="mt-2 text-sm text-zinc-600">
-            Product or store data is missing in Supabase.
+            Product or originator store is missing for this recommendation.
           </p>
         </div>
       </main>
@@ -101,15 +116,16 @@ export default async function RedeemPage({ params }: PageProps) {
             Submit your purchase
           </h1>
           <p className="mt-2 text-sm text-zinc-600">
-            Select the store, capture your location, enter the receipt details,
-            and upload a photo of your bill. You can only redeem this token once.
+            Buy at the originator&apos;s store, capture your location there,
+            enter the receipt date/time and barcode, and upload a photo of your
+            bill. You can only redeem this token once.
           </p>
         </div>
 
         <RedeemForm
           tokenCode={code}
           product={product}
-          stores={stores}
+          originatorStore={originatorStore}
           userId={user.id}
         />
       </div>

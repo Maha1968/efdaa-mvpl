@@ -23,7 +23,13 @@ export const REWARD_DISPLAY_DECIMALS = 2;
 
 /** Genuineness score multipliers (applied to a base of 1.0). */
 export const BARCODE_MISS_MULTIPLIER = 0.5;
-export const STORE_MISS_MULTIPLIER = 0.7;
+/**
+ * Purchase GPS must be within STORE_MATCH_MAX_DISTANCE_M of the originator's
+ * store. Miss → harsh pilot penalty (not a hard reject).
+ */
+export const STORE_MISS_MULTIPLIER = 0.01;
+/** Max metres from originator store GPS for store_match. */
+export const STORE_MATCH_MAX_DISTANCE_M = 50;
 export const PROXIMITY_PENALTY_MULTIPLIER = 0.4;
 
 /** Anti-collusion: originator claim ↔ purchaser token claim. Penalty if BOTH

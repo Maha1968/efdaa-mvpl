@@ -16,6 +16,8 @@ export type CreateTokenInput = {
   claimLat: number;
   claimLng: number;
   claimLocationText?: string;
+  /** Partner store this recommendation is for. */
+  originatorStoreId: string;
 };
 
 export type ForwardTokenInput = {
@@ -63,6 +65,7 @@ export async function createOriginatorToken(input: CreateTokenInput) {
         claim_lat: input.claimLat,
         claim_lng: input.claimLng,
         claim_location_text: input.claimLocationText || null,
+        originator_store_id: input.originatorStoreId,
         expires_at: expiresAt,
       })
       .select("id")
@@ -144,6 +147,7 @@ export async function forwardToken(input: ForwardTokenInput) {
         claim_lat: input.claimLat,
         claim_lng: input.claimLng,
         claim_location_text: input.claimLocationText || null,
+        originator_store_id: parent.originator_store_id,
         expires_at: parent.expires_at,
       })
       .select("id, code")

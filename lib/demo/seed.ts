@@ -44,7 +44,7 @@ const PLACES = [
 
 /**
  * Partner store where recommendations originate and purchases redeem.
- * store_match (production + demo) = purchase GPS within 500m of this store.
+ * store_match = purchase GPS within STORE_MATCH_MAX_DISTANCE_M (50m) of this store.
  */
 const STORE = {
   lat: 12.93522,
@@ -52,8 +52,12 @@ const STORE = {
   text: "EFDAA Partner Store, Koramangala",
 } as const;
 
-const PROX_A = { lat: 12.9716, lng: 77.5946, text: "Near MG Road" };
-const PROX_B = { lat: 12.97169, lng: 77.5946, text: "Near MG Road (~10m away)" };
+/** Buyer claim near originator (at the partner store) for proximity demo. */
+const PROX_BUYER = {
+  lat: 12.93529,
+  lng: 77.62448,
+  text: "Near EFDAA Partner Store (~10m away)",
+} as const;
 
 type Place = { lat: number; lng: number; text: string };
 
@@ -200,7 +204,7 @@ async function assertReferralEventsReady(admin: SupabaseClient) {
     .select("id", { count: "exact", head: true });
   if (error) {
     throw new Error(
-      "referral_events table is missing (needed for Opens). In Supabase → SQL Editor, run supabase/schema_stage7a.sql, then supabase/schema_demo.sql. After that, Reset + Load demo data again.",
+      "referral_events table is missing (needed for Opens). In Supabase → SQL Editor, run supabase/schema_stage7a.sql, then supabase/schema_demo.sql, then supabase/schema_stage7h.sql (originator_store_id + receipt_purchased_at). After that, Reset + Load demo data again.",
     );
   }
 }
@@ -249,6 +253,7 @@ async function createTokenNode(input: {
   place: Place;
   at: Date;
   expiresAt: Date;
+  originatorStoreId: string;
   shared?: boolean;
 }): Promise<TokenRow> {
   const { admin } = input;
@@ -268,6 +273,7 @@ async function createTokenNode(input: {
       claim_lat: input.place.lat,
       claim_lng: input.place.lng,
       claim_location_text: input.place.text,
+      originator_store_id: input.originatorStoreId,
       expires_at: input.expiresAt.toISOString(),
       created_at: input.at.toISOString(),
       is_demo: true,
@@ -357,6 +363,7 @@ async function validateLeafPurchase(input: {
       amount: input.amount,
       receipt_image_url: PLACEHOLDER_RECEIPT,
       receipt_barcode: input.barcode,
+      receipt_purchased_at: input.at.toISOString(),
       status: "pending",
       created_at: input.at.toISOString(),
       is_demo: true,
@@ -465,6 +472,7 @@ async function growDepth4Tree(input: {
     place: STORE,
     at: t0,
     expiresAt,
+    originatorStoreId: storeId,
     shared: true,
   });
   codes.push(root.code);
@@ -511,6 +519,7 @@ async function growDepth4Tree(input: {
           place: nextPlace(),
           at: hoursAfter(t0, hoursOffset),
           expiresAt,
+          originatorStoreId: storeId,
           shared: depth + 1 < 4,
         });
         codes.push(child.code);
@@ -736,6 +745,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       place: STORE,
       at: t0,
       expiresAt,
+      originatorStoreId: store.id,
       shared: true,
     });
     const B = await createTokenNode({
@@ -751,6 +761,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       place: placeAt(placeCounter.n++),
       at: hoursAfter(t0, 3),
       expiresAt,
+      originatorStoreId: store.id,
       shared: true,
     });
     const C = await createTokenNode({
@@ -766,6 +777,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       place: placeAt(placeCounter.n++),
       at: hoursAfter(t0, 8),
       expiresAt,
+      originatorStoreId: store.id,
     });
     rootCodes.push(A.code);
     tokenCount += 3;
@@ -799,9 +811,11 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      place: PROX_A,
+      // Recommends from partner store; claim GPS also at that store.
+      place: STORE,
       at: t0,
       expiresAt,
+      originatorStoreId: store.id,
       shared: true,
     });
     const B = await createTokenNode({
@@ -814,9 +828,11 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      place: PROX_B,
+      // Buyer claims ~10m from originator (at the same store) → proximity penalty.
+      place: PROX_BUYER,
       at: minutesAfter(t0, 2),
       expiresAt,
+      originatorStoreId: store.id,
     });
     rootCodes.push(A.code);
     tokenCount += 2;
@@ -853,6 +869,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       place: STORE,
       at: t0,
       expiresAt,
+      originatorStoreId: store.id,
       shared: true,
     });
     const B = await createTokenNode({
@@ -868,6 +885,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       place: placeAt(placeCounter.n++),
       at: hoursAfter(t0, 4),
       expiresAt,
+      originatorStoreId: store.id,
       shared: true,
     });
     const C = await createTokenNode({
@@ -883,6 +901,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       place: placeAt(placeCounter.n++),
       at: hoursAfter(t0, 20),
       expiresAt,
+      originatorStoreId: store.id,
     });
     rootCodes.push(A.code);
     tokenCount += 3;

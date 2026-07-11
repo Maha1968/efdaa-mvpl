@@ -55,6 +55,8 @@ export interface Token {
   claim_lat: number | null;
   claim_lng: number | null;
   claim_location_text: string | null;
+  /** Partner store the originator recommended from (root + descendants). */
+  originator_store_id: string | null;
   expires_at: string;
   created_at: string;
 }
@@ -69,6 +71,8 @@ export interface Purchase {
   amount: number;
   receipt_image_url: string | null;
   receipt_barcode: string | null;
+  /** Date/time from the receipt/invoice — source of purchase duration. */
+  receipt_purchased_at: string | null;
   status: PurchaseStatus;
   barcode_match: boolean | null;
   store_match: boolean | null;

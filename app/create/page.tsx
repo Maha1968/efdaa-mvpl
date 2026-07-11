@@ -15,18 +15,20 @@ export default async function CreateTokenPage() {
   const role = await getAppRole();
   if (role === "admin") redirect("/admin");
 
-  const [{ data: products }, { data: offers }] = await Promise.all([
-    supabase.from("products").select("*").order("name"),
-    supabase.from("offers").select("*").order("name"),
-  ]);
+  const [{ data: products }, { data: offers }, { data: stores }] =
+    await Promise.all([
+      supabase.from("products").select("*").order("name"),
+      supabase.from("offers").select("*").order("name"),
+      supabase.from("stores").select("*").order("name"),
+    ]);
 
-  if (!products?.length || !offers?.length) {
+  if (!products?.length || !offers?.length || !stores?.length) {
     return (
       <main className="flex flex-1 flex-col px-6 py-10">
         <div className="mx-auto w-full max-w-md text-center">
-          <h1 className="text-xl font-semibold text-zinc-900">No products yet</h1>
+          <h1 className="text-xl font-semibold text-zinc-900">Setup incomplete</h1>
           <p className="mt-2 text-sm text-zinc-600">
-            Add sample products and offers in Supabase first.
+            Add sample products, offers, and stores in Supabase first.
           </p>
           <Link href="/" className="mt-6 inline-block text-emerald-700 underline">
             Back home
@@ -51,14 +53,16 @@ export default async function CreateTokenPage() {
             Create a token
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-            Photograph a product and its barcode, capture your location, and
-            share a token — no purchase needed.
+            Photograph a product and its barcode, pick the store you are
+            recommending from, capture your location, and share a token — no
+            purchase needed.
           </p>
         </div>
 
         <CreateTokenForm
           products={products}
           offers={offers}
+          stores={stores}
           userId={user.id}
         />
       </div>

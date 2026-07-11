@@ -16,6 +16,8 @@ export type CreatePurchaseInput = {
   receiptImageUrl: string;
   purchaseLat: number;
   purchaseLng: number;
+  /** Date/time printed on the receipt (ISO string). */
+  receiptPurchasedAt: string;
 };
 
 export async function createPurchase(input: CreatePurchaseInput) {
@@ -46,10 +48,17 @@ export async function createPurchase(input: CreatePurchaseInput) {
     return { error: "This offer has expired." };
   }
 
-  // Purchase cannot precede this token's claim — so originator→purchase
-  // gap is always ≥ originator→buyer-claim gap.
-  if (new Date(token.created_at).getTime() > Date.now()) {
-    return { error: "Cannot purchase before this coupon was claimed." };
+  const receiptPurchasedAt = new Date(input.receiptPurchasedAt);
+  if (Number.isNaN(receiptPurchasedAt.getTime())) {
+    return { error: "Please enter the date and time from your receipt." };
+  }
+
+  // Purchase (receipt time) cannot precede this token's claim.
+  if (receiptPurchasedAt.getTime() < new Date(token.created_at).getTime()) {
+    return {
+      error:
+        "Receipt purchase time cannot be before this coupon was claimed.",
+    };
   }
 
   if (await hasTokenBeenRedeemed(supabase, token.id)) {
@@ -58,13 +67,33 @@ export async function createPurchase(input: CreatePurchaseInput) {
 
   const { data: rootToken } = await supabase
     .from("tokens")
-    .select("created_at")
+    .select("created_at, originator_store_id")
     .eq("id", token.root_token_id ?? token.id)
     .single();
 
+  const originatorStoreId =
+    rootToken?.originator_store_id ?? token.originator_store_id ?? null;
+
+  if (!originatorStoreId) {
+    return {
+      error:
+        "This recommendation has no originator store. Ask the originator to recreate it.",
+    };
+  }
+
+  if (input.storeId !== originatorStoreId) {
+    return {
+      error:
+        "Purchase must be recorded at the originator’s store for this recommendation.",
+    };
+  }
+
   const originTime = rootToken?.created_at ?? token.created_at;
   const timeToPurchaseHours = Number(
-    ((Date.now() - new Date(originTime).getTime()) / 3_600_000).toFixed(2),
+    (
+      (receiptPurchasedAt.getTime() - new Date(originTime).getTime()) /
+      3_600_000
+    ).toFixed(2),
   );
 
   const { data: purchase, error: insertError } = await supabase
@@ -72,12 +101,13 @@ export async function createPurchase(input: CreatePurchaseInput) {
     .insert({
       token_id: token.id,
       buyer_user_id: user.id,
-      store_id: input.storeId,
+      store_id: originatorStoreId,
       purchase_lat: input.purchaseLat,
       purchase_lng: input.purchaseLng,
       amount: input.amount,
       receipt_image_url: input.receiptImageUrl,
       receipt_barcode: input.receiptBarcode.trim(),
+      receipt_purchased_at: receiptPurchasedAt.toISOString(),
       status: "pending",
       time_to_purchase_hours: timeToPurchaseHours,
       genuineness_score: 1.0,

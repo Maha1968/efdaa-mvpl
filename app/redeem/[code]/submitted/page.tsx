@@ -49,6 +49,9 @@ export default async function PurchaseSubmittedPage({
           <p className="mt-3 text-sm text-zinc-500">Time since originator shared</p>
           <p className="text-sm text-zinc-900">
             {purchase.time_to_purchase_hours ?? "—"} hours
+            {purchase.receipt_purchased_at
+              ? ` (from receipt ${new Date(purchase.receipt_purchased_at).toLocaleString()})`
+              : ""}
           </p>
         </div>
 

@@ -4,21 +4,24 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { createOriginatorToken } from "@/lib/actions/tokens";
 import { PhotoUpload } from "@/components/photo-upload";
-import type { Offer, Product } from "@/types/database";
+import type { Offer, Product, Store } from "@/types/database";
 
 type CreateTokenFormProps = {
   products: Product[];
   offers: Offer[];
+  stores: Store[];
   userId: string;
 };
 
 export function CreateTokenForm({
   products,
   offers,
+  stores,
   userId,
 }: CreateTokenFormProps) {
   const [productId, setProductId] = useState(products[0]?.id ?? "");
   const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
+  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
   const [barcode, setBarcode] = useState(products[0]?.barcode ?? "");
   const [productPhoto, setProductPhoto] = useState<File | null>(null);
   const [barcodePhoto, setBarcodePhoto] = useState<File | null>(null);
@@ -90,6 +93,10 @@ export function CreateTokenForm({
       setError("Please select a product and offer.");
       return;
     }
+    if (!storeId) {
+      setError("Please select the store you are recommending from.");
+      return;
+    }
     if (!barcode.trim()) {
       setError("Please enter the barcode number.");
       return;
@@ -120,6 +127,7 @@ export function CreateTokenForm({
         claimLat: coords.lat,
         claimLng: coords.lng,
         claimLocationText: locationText.trim() || undefined,
+        originatorStoreId: storeId,
       });
 
       if (result?.error) {
@@ -169,6 +177,28 @@ export function CreateTokenForm({
           {offers.map((offer) => (
             <option key={offer.id} value={offer.id}>
               {offer.name} ({(offer.base_reward_pct * 100).toFixed(0)}% reward)
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label htmlFor="store" className="mb-1.5 block text-sm font-medium text-zinc-700">
+          Store you are recommending from
+        </label>
+        <p className="mb-2 text-sm text-zinc-500">
+          Buyers must purchase at this store for a full store-match score.
+        </p>
+        <select
+          id="store"
+          value={storeId}
+          onChange={(e) => setStoreId(e.target.value)}
+          className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+        >
+          {stores.map((store) => (
+            <option key={store.id} value={store.id}>
+              {store.name}
+              {store.address ? ` — ${store.address}` : ""}
             </option>
           ))}
         </select>

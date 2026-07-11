@@ -10,7 +10,8 @@ import {
   ZERO_SCORE_FLOOR_REWARD_PCT,
 } from "@/config/rewards";
 import { haversineMeters } from "@/lib/geo/haversine";
-import { STORE_MATCH_MAX_DISTANCE_M } from "@/lib/purchases/validation";
+import { STORE_MATCH_MAX_DISTANCE_M } from "@/config/rewards";
+import { purchaseEventTime } from "@/lib/purchases/validation";
 
 export type DemoChainKind = "genuine" | "proximity" | "expired";
 
@@ -292,6 +293,10 @@ async function loadOneChain(
   const scoringRaw = genuineness.hops.find((h) => h.scoresProximity);
   const scoringHop = scoringRaw ? toDemoHop(scoringRaw) : null;
 
+  const purchaseAtIso =
+    purchase.receipt_purchased_at ?? purchase.created_at;
+  const purchasedAt = purchaseEventTime(purchase);
+
   const originator = chain[0];
   const buyerClaim = chain[chain.length - 1];
   const minutesOriginToBuyerClaim =
@@ -307,7 +312,7 @@ async function loadOneChain(
   const minutesOriginToPurchase = originator
     ? Number(
         (
-          (new Date(purchase.created_at).getTime() -
+          (purchasedAt.getTime() -
             new Date(originator.created_at).getTime()) /
           60_000
         ).toFixed(1),
@@ -316,8 +321,7 @@ async function loadOneChain(
   const minutesClaimToPurchase = buyerClaim
     ? Number(
         (
-          (new Date(purchase.created_at).getTime() -
-            new Date(buyerClaim.created_at).getTime()) /
+          (purchasedAt.getTime() - new Date(buyerClaim.created_at).getTime()) /
           60_000
         ).toFixed(1),
       )
@@ -364,8 +368,8 @@ async function loadOneChain(
       label: "Correct store",
       pass: flags.store_match,
       detail: flags.store_match
-        ? `Purchase GPS within ${STORE_MATCH_MAX_DISTANCE_M}m of the selected partner store`
-        : `Purchase GPS was farther than ${STORE_MATCH_MAX_DISTANCE_M}m from the selected partner store`,
+        ? `Purchase GPS within ${STORE_MATCH_MAX_DISTANCE_M}m of the originator’s store`
+        : `Purchase GPS farther than ${STORE_MATCH_MAX_DISTANCE_M}m from the originator’s store (score ×0.01)`,
     },
     {
       label: "Within validity window",
@@ -408,7 +412,7 @@ async function loadOneChain(
     storeName: store?.name ?? "Store",
     storeAddress: store?.address ?? null,
     purchaseVsStoreMeters,
-    purchaseAt: purchase.created_at,
+    purchaseAt: purchaseAtIso,
     purchaseCoords: formatCoords(purchase.purchase_lat, purchase.purchase_lng),
     minutesOriginToBuyerClaim,
     minutesOriginToPurchase,

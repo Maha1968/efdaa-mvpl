@@ -227,7 +227,7 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
               <p className="mt-0.5 text-sm text-zinc-600">{chain.storeAddress}</p>
             ) : null}
             <p className="mt-2 text-sm font-medium text-zinc-900">
-              Distance to selected store GPS:{" "}
+              Distance to originator store GPS:{" "}
               {chain.purchaseVsStoreMeters != null
                 ? `${chain.purchaseVsStoreMeters.toFixed(0)} m`
                 : "—"}
@@ -242,7 +242,7 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
               </p>
             ) : null}
             <p className="mt-1 text-xs text-zinc-500">
-              Purchased {new Date(chain.purchaseAt).toLocaleString()}
+              Receipt time {new Date(chain.purchaseAt).toLocaleString()}
               {chain.minutesOriginToPurchase != null
                 ? ` · ${formatDurationMinutes(chain.minutesOriginToPurchase)} from originator claim`
                 : ""}

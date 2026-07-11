@@ -1,10 +1,10 @@
 import type { Product, Purchase, Store, Token } from "@/types/database";
+import { STORE_MATCH_MAX_DISTANCE_M } from "@/config/rewards";
 import { buildTokenChain } from "@/lib/purchases/chain";
 import { computeOriginatorToBuyerClaimGap } from "@/lib/purchases/genuineness";
 import { haversineMeters } from "@/lib/geo/haversine";
 
-/** Max distance (metres) from store GPS for store_match in the pilot. */
-export const STORE_MATCH_MAX_DISTANCE_M = 500;
+export { STORE_MATCH_MAX_DISTANCE_M };
 
 export type SignalFlags = {
   barcode_match: boolean;
@@ -19,47 +19,61 @@ function normalizeBarcode(value: string) {
   return value.replace(/\s+/g, "").trim();
 }
 
+/** Receipt timestamp when present; otherwise row created_at (legacy). */
+export function purchaseEventTime(purchase: Purchase): Date {
+  if (purchase.receipt_purchased_at) {
+    return new Date(purchase.receipt_purchased_at);
+  }
+  return new Date(purchase.created_at);
+}
+
 export async function computePurchaseSignalFlags(input: {
   purchase: Purchase;
   token: Token;
   product: Product;
-  store: Store | null;
+  /** Originator's partner store — purchase GPS is scored against this. */
+  originatorStore: Store | null;
   fetchParentToken: (parentId: string) => Promise<Token | null>;
 }): Promise<SignalFlags> {
-  const { purchase, token, product, store, fetchParentToken } = input;
+  const { purchase, token, product, originatorStore, fetchParentToken } = input;
 
   const chain = await buildTokenChain(token, fetchParentToken);
   const root = chain[0];
+  const purchasedAt = purchaseEventTime(purchase);
 
   const timeToPurchaseHours = Number(
     (
-      (new Date(purchase.created_at).getTime() -
-        new Date(root.created_at).getTime()) /
+      (purchasedAt.getTime() - new Date(root.created_at).getTime()) /
       3_600_000
     ).toFixed(2),
   );
 
   const within_window =
-    new Date(purchase.created_at).getTime() <=
-    new Date(token.expires_at).getTime();
+    purchasedAt.getTime() <= new Date(token.expires_at).getTime();
 
   const barcode_match =
     normalizeBarcode(purchase.receipt_barcode ?? "") ===
     normalizeBarcode(product.barcode);
 
+  // store_match: purchase GPS within STORE_MATCH_MAX_DISTANCE_M of originator store.
   let store_match = false;
   if (
-    store?.lat != null &&
-    store?.lng != null &&
+    originatorStore?.lat != null &&
+    originatorStore?.lng != null &&
     purchase.purchase_lat != null &&
     purchase.purchase_lng != null
   ) {
+    const atOriginatorStore =
+      !originatorStore.id ||
+      !purchase.store_id ||
+      purchase.store_id === originatorStore.id;
     store_match =
+      atOriginatorStore &&
       haversineMeters(
         purchase.purchase_lat,
         purchase.purchase_lng,
-        store.lat,
-        store.lng,
+        originatorStore.lat,
+        originatorStore.lng,
       ) <= STORE_MATCH_MAX_DISTANCE_M;
   }
 

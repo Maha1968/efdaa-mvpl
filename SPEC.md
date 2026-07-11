@@ -90,40 +90,44 @@ and WHEN that person claimed/created it.
 - `product_photo_url`, `barcode_photo_url` — proof photos (Supabase Storage)
 - `claim_lat`, `claim_lng` — WHERE this person was when they claimed/created this token
 - `claim_location_text` — OPTIONAL place name the user typed (e.g. "Phoenix Mall")
+- `originator_store_id` — partner store the originator recommended from (set on root;
+  copied to every child). Purchase GPS is scored against this store.
 - `expires_at` — inherited from the root (root.created_at + validity window). Same for the chain.
-- `created_at` — WHEN this token was claimed/created (used for time-gap checks)
+- `created_at` — WHEN this token was claimed/created (used for claim-duration / proximity)
 
 **purchases** (the uploaded receipt)
-- `id`, `token_id`, `buyer_user_id`, `store_id`
-- `purchase_lat`, `purchase_lng` — where the purchase happened
+- `id`, `token_id`, `buyer_user_id`, `store_id` (must be the originator’s store)
+- `purchase_lat`, `purchase_lng` — where the purchase happened (GPS at checkout)
 - `amount`, `receipt_image_url`, `receipt_barcode` (manual in pilot)
+- `receipt_purchased_at` — **date/time printed on the receipt** (required). Source of
+  purchase duration, window window, and hop-to-purchase times. Not app submit time.
 - `status` — `pending` | `validated` | `rejected`
 - Signal flags (computed at validation):
   - `barcode_match`, `store_match`, `within_window`
-  - `time_to_purchase_hours` — hours from **originator claim** to purchase. Always ≥ the
-    originator→buyer-claim gap (purchase cannot precede the redeemed token’s claim).
+  - `time_to_purchase_hours` — hours from **originator share** to **`receipt_purchased_at`**.
+    Always ≥ the originator→buyer-claim gap (`receipt_purchased_at` ≥ buyer claim).
   - `min_hop_distance_m` — distance (m) between **originator claim** and **buyer token claim**
     (the proximity scoring gap; not consecutive mid-chain hops)
   - `min_hop_time_minutes` — time gap (minutes) for that same originator ↔ buyer-claim pair
 - `genuineness_score` — 0.0–1.0, from Section 4
-- `created_at`
+- `created_at` — when the purchase was submitted to EFDAA (audit only)
 
 **rewards** — `id`, `purchase_id`, `user_id`, `role`
 (`originator` | `forwarder` | `last_referrer` | `buyer`), `amount`, `created_at`
 
 ### The lineage & expiry rules (enforce in code)
 1. **Originator** token: `parent_token_id = NULL`, `root_token_id = its own id`, `depth = 0`,
-   `expires_at = created_at + TOKEN_VALIDITY_HOURS`. Claim location = originator's GPS.
-   The originator does NOT buy.
-2. **Claim (open a link):** capture the claimer's GPS location + current time.
+   `expires_at = created_at + TOKEN_VALIDITY_HOURS`, **`originator_store_id` = selected partner
+   store**. Claim location = originator's GPS. The originator does NOT buy.
+2. **Claim (open a link):** capture the claimer's GPS location + current time (anywhere).
 3. **Forward:** create a NEW token — `parent_token_id = received token`,
    `root_token_id = parent's root`, `depth = parent.depth + 1`, `expires_at = parent's expires_at`,
+   `originator_store_id = parent's originator_store_id`,
    `claim_lat/lng` and `created_at` = the claimer's captured location + time.
 4. **Reject forwards where `depth > 4`.**
 5. **Reject any action after `expires_at`.** An expired link shows "This offer has expired."
-6. **Reject purchase if `purchase.created_at` is before the redeemed token’s claim
-   (`token.created_at`).** Consequently `time_to_purchase_hours` (originator → purchase) is
-   never less than the originator → buyer-claim gap.
+6. **Reject purchase if `receipt_purchased_at` is before the redeemed token’s claim
+   (`token.created_at`).** Timeline: Originator share → Buyer claim → Receipt purchase time.
 7. Trace a chain: from the redeemed token follow `parent_token_id` up to the root (recursive CTE).
 
 ---
@@ -135,17 +139,23 @@ Genuineness rewards purchases that look like real, independent word-of-mouth and
 that look self-dealing. Start at `1.0`, then apply these configurable adjustments:
 
 - If `within_window` is **false** → `genuineness_score = 0` (scored pool is 0; pilot still pays
-  the zero-score floor — see Step B).
+  the zero-score floor — see Step B). Window uses **`receipt_purchased_at`** vs `expires_at`.
 - If `barcode_match` is **false** → × `BARCODE_MISS_MULTIPLIER` (0.5).
-- If `store_match` is **false** → × `STORE_MISS_MULTIPLIER` (0.7).
+- If `store_match` is **false** → × `STORE_MISS_MULTIPLIER` (**0.01**). `store_match` means
+  purchase GPS is within `STORE_MATCH_MAX_DISTANCE_M` (**50 m**) of the **originator’s store**
+  GPS (and `store_id` is that store). Claim/open may be elsewhere; purchase should be at the
+  originator’s store. Miss is a harsh score cut, not a hard reject.
 - **Proximity-time check (anti-collusion):** Intermediate shares may be tracked for display
   (consecutive claim places/times), but they do **not** change the score. The score uses **one**
   comparison only: **originator claim** ↔ **purchaser’s token claim** (the redeemed token’s
   `claim_lat/lng` + `created_at` vs the originator’s). If that pair is **both** too near
   (`distance < MIN_GENUINE_DISTANCE_METERS`, default **1000**) **and** too fast
   (`gap < MIN_GENUINE_TIME_MINUTES`, default **60**), apply × `PROXIMITY_PENALTY_MULTIPLIER` (0.4)
-  once. Far apart **or** enough time clears the check. Purchase GPS is for `store_match`, not
-  this penalty; buyers may claim elsewhere and later buy at the partner store within the window.
+  once. Far apart **or** enough time clears the check.
+
+**Durations (same originator baseline):**
+- Claim duration = buyer claim time − originator share time
+- Purchase duration = `receipt_purchased_at` − originator share time
 
 Distance uses the Haversine formula on two lat/lng points (Cursor knows it). No maps service is
 needed — only the coordinates and timestamps already captured.
@@ -167,7 +177,8 @@ When a purchase is marked **validated**:
 ### Config file (single place to tune everything)
 - `TOKEN_VALIDITY_HOURS` = 24
 - `BARCODE_MISS_MULTIPLIER` = 0.5
-- `STORE_MISS_MULTIPLIER` = 0.7
+- `STORE_MISS_MULTIPLIER` = 0.01
+- `STORE_MATCH_MAX_DISTANCE_M` = 50
 - `MIN_GENUINE_DISTANCE_METERS` = 1000
 - `MIN_GENUINE_TIME_MINUTES` = 60
 - `PROXIMITY_PENALTY_MULTIPLIER` = 0.4
@@ -275,24 +286,26 @@ Every new token must remember its parent, root, expiry, and the claimer's locati
 
 ### Stage 5 — Purchase & receipt upload (manual validation)
 ```
-Build the purchase flow for a redeemed token: the buyer selects the store, the app captures their
-current GPS location, they enter the amount, enter the barcode shown on the receipt, and upload a
-photo of the receipt (Supabase Storage). Create a purchases row with status 'pending' and record
-time_to_purchase_hours (from the originator's token creation to now). Then build a simple admin
-page (only visible to me) listing pending purchases with the receipt image and captured details,
-with Validate / Reject buttons. On Validate, compute the signal flags (barcode_match, store_match,
-within_window) and the originator↔buyer-claim distance/time (stored as min_hop_*) before running
-rewards.
+Build the purchase flow for a redeemed token: the buyer purchases at the **originator’s store**
+(locked in the UI), the app captures their current GPS location, they enter the **date/time
+printed on the receipt**, the amount, the barcode on the receipt, and upload a photo of the
+receipt (Supabase Storage). Create a purchases row with status 'pending',
+`receipt_purchased_at`, and `time_to_purchase_hours` (originator share → receipt time). Then
+build a simple admin page (only visible to me) listing pending purchases with the receipt image
+and captured details, with Validate / Reject buttons. On Validate, compute the signal flags
+(barcode_match, store_match vs originator store within 50m, within_window from receipt time)
+and the originator↔buyer-claim distance/time (stored as min_hop_*) before running rewards.
 ```
 
 ### Stage 6 — Genuineness, attribution & reward split
 ```
 When a purchase is set to 'validated', follow SPEC.md Section 4 exactly:
 A) Compute genuineness_score: if within_window is false, score = 0; else start at 1.0, then
-   × BARCODE_MISS_MULTIPLIER if barcode doesn't match, × STORE_MISS_MULTIPLIER if store doesn't
-   match, and × PROXIMITY_PENALTY_MULTIPLIER if originator claim ↔ buyer token claim is BOTH
-   closer than MIN_GENUINE_DISTANCE_METERS AND faster than MIN_GENUINE_TIME_MINUTES (Haversine on
-   claim coordinates; intermediate shares do not affect the score). Purchase GPS is for store_match.
+   × BARCODE_MISS_MULTIPLIER if barcode doesn't match, × STORE_MISS_MULTIPLIER (0.01) if
+   purchase GPS is not within STORE_MATCH_MAX_DISTANCE_M (50m) of the originator’s store, and
+   × PROXIMITY_PENALTY_MULTIPLIER if originator claim ↔ buyer token claim is BOTH closer than
+   MIN_GENUINE_DISTANCE_METERS AND faster than MIN_GENUINE_TIME_MINUTES (Haversine on claim
+   coordinates; intermediate shares do not affect the score).
 B) base_pool = amount × offer.base_reward_pct × genuineness_score.
 C) Walk the chain to the root (recursive query), assign roles (buyer, last_referrer, originator,
    forwarder), and split base_pool by weights (buyer 4, last_referrer 3, originator 2, forwarder 1).
@@ -398,29 +411,31 @@ HARD RULES FOR THE SEED
 - Privacy-by-Design: seeded people shown by platform User ID only on admin views.
 - Respect max depth 4, TOKEN_VALIDITY_HOURS, and expires_at inheritance from originator.
 - Realistic Bengaluru coordinates, multiple demo products, one partner store
-  (originator recommends at that store; recipients may claim anywhere; purchases redeem at
-  that same store GPS — same store_match rule as production), placeholder images.
-- **Invariant:** purchase `created_at` is always **after** the redeemed token’s claim time
+  (originator recommends from that store via `originator_store_id`; recipients may claim
+  anywhere; purchases redeem at that same store GPS — store_match within 50m), placeholder
+  images.
+- **Invariant:** `receipt_purchased_at` is always **after** the redeemed token’s claim time
   (typically ~20–30 minutes later in the short /demo chains). Purchase GPS is the partner
   store coordinates (≈ 0 m vs store), not the buyer’s claim place. Display purchase timing
-  from the **originator** baseline (e.g. claim at +8 h → purchase at +8 h 25 min), so the
-  checkout gap is always greater than the claim gap.
+  from the **originator** baseline using receipt time (e.g. claim at +8 h → receipt at
+  +8 h 25 min), so the checkout gap is always greater than the claim gap.
 
 SEED SHAPE (Vercel-safe compact fanouts)
 - Branching depth-4 trees: parent → child → grandchild → great-grandchild.
 - Roots: DEMOT1A (tea), DEMOT2A (coffee), DEMOT3A (spice). Plus DEMOGEN0 (short genuine chain
   for /demo), DEMOPRX0 (proximity contrast), DEMOEXP0 (expired / floor contrast).
-- Partner store: EFDAA Partner Store, Koramangala — originators claim there; purchases redeem
-  there (store_match = purchase GPS within 500m of that store).
-- Intermediate claims may be elsewhere (km hops). Proximity demo: buyer claims near originator
-  and too soon, then later checks out at the Koramangala store. Genuine demo: buyer claims far
-  / with enough time (e.g. BTM), then buys at the store ~25 min after claim. Expired demo:
-  claim inside window, purchase after expiry → score 0 + floor.
+- Partner store: EFDAA Partner Store, Koramangala — originators recommend from / claim there;
+  purchases redeem there (store_match = purchase GPS within 50m of that store).
+- Intermediate claims may be elsewhere (km hops). Proximity demo: buyer claims ~10m from
+  originator at the same store and too soon, then checks out at that store. Genuine demo:
+  buyer claims far / with enough time (e.g. BTM), then buys at the store ~25 min after claim
+  (receipt time). Expired demo: claim inside window, receipt after expiry → score 0 + floor.
 - Sample depth-4 leaves redeem via the real validation path so Network / Purchases / Rewards
   show engine-computed numbers.
 - Seed logs referral_events (opened on depth≥1 tokens, claimed, redeemed). Opens on Overview
   count those rows — requires supabase/schema_stage7a.sql (referral_events table) plus
-  schema_demo.sql (is_demo columns). Load fails early with a clear error if the table is missing.
+  schema_demo.sql (is_demo columns) plus schema_stage7h.sql (originator_store_id,
+  receipt_purchased_at). Load fails early with a clear error if the table is missing.
 
 ADMIN UI ADDITIONS FOR THE DEMO
 - Referral Assist: full nested descendants (not only direct children); mark tokens that have a
@@ -481,13 +496,11 @@ MAIN: three columns on wide screens (stack on mobile) —
   - Highlighted **Scores genuineness** hop: originator claim ↔ buyer claim (what drives the
     proximity penalty; thresholds from config).
   - **The purchase (from invoice):** product, barcode, receipt thumbnail, **store name + address**
-    from the selected partner store on the receipt, **distance from purchase GPS to that store**
-    (≈ 0 m when at store — this is the store_match evidence, not claim place), purchase time,
-    **time from originator claim** (always ≥ buyer-claim gap, e.g. 8 h 25 min when claim was at
-    8 h), amount.
+    of the **originator’s store**, **distance from purchase GPS to that store** (≈ 0 m when at
+    store — store_match within 50m), **receipt time**, **purchase duration from originator
+    share** (always ≥ claim gap), amount.
   - Optional **Checkout vs originator** hop: distance = buyer claim place → store; **time =
-    originator claim → purchase** (same baseline as the scoring hop). Do not present claim→
-    checkout minutes alone as the purchase gap.
+    originator share → receipt time**.
   - Large colour-coded genuineness score; plain-English pass/fail checks; reward pool and role
     split. Explicit copy that expired chains keep a full attribution record and still pay the floor.
 
@@ -511,10 +524,11 @@ hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
       GPS location, optional place name, and expiry — and share it.
 - [ ] Stage 4: Claiming captures my location + time; forwarding creates a new token; depth
       increases; the 5-person cap blocks; an EXPIRED link shows as expired and does nothing.
-- [ ] Stage 5: A receipt uploads with store, GPS location, and receipt barcode; I can validate/reject.
+- [ ] Stage 5: A receipt uploads with originator store locked, GPS, receipt date/time, barcode;
+      I can validate/reject.
 - [ ] Stage 6: Genuineness scores correctly — proximity uses originator claim ↔ buyer token claim
-      only (&lt;1000m AND &lt;60 min → penalty); barcode/store/window as SPEC §4; floor when score 0.
-      Intermediate near/fast shares do not change the score. Rewards split correctly.
+      only (&lt;1000m AND &lt;60 min → penalty); store_match = within 50m of originator store
+      (miss → ×0.01); window/duration from receipt_purchased_at; floor when score 0.
 - [ ] Stage 7: I can trace any full chain and see the leaderboard.
 - [ ] Stage 7A: Customer dashboard shows only my products + depth aggregates (no others' tokens
       or identities). Admin dashboards use User IDs only (no names/phones/emails). Referral Assist
@@ -528,14 +542,13 @@ hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
       banner (catalog later). Admins cannot open it.
 - [ ] Stage 7E: Admin Demo Data Load seeds DEMOT1A/2A/3A + DEMOGEN0/DEMOPRX0/DEMOEXP0;
       genuineness + rewards from real engine; reset removes only is_demo rows; Opens > 0 after
-      schema_stage7a + Load; Assist/Network show (P); Purchase view shows tree-by-depth totals;
-      demo_user@efdaa.com / demo_user is DEMOT1A originator.
+      schema_stage7a + schema_demo + schema_stage7h + Load; Assist/Network show (P); Purchase
+      view shows tree-by-depth totals; demo_user@efdaa.com / demo_user is DEMOT1A originator.
 - [ ] Stage 7F: /rewards shows lifetime points + Originator/Forwarder/Buyer cards and sections;
       originator expand has level aggregates only (no PII/codes); forwarder/buyer lists privacy-safe;
       Buy using EFDAA points still links to /efdaagifts; admins redirected away.
-- [ ] Stage 7G: Public /demo shows Genuine / Proximity / Expired; buyer claim separate from
-      invoice purchase (store name+address); purchase-vs-store ≈ 0 m at Koramangala; checkout
-      time shown from originator (always ≥ claim gap, e.g. 8 h 25 min); scoring hop =
+- [ ] Stage 7G: Public /demo shows Genuine / Proximity / Expired; purchase at originator store
+      (≤50m); receipt time drives purchase duration (≥ claim gap); scoring hop =
       originator↔buyer claim; mobile at 375px.
 
 ---

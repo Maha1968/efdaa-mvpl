@@ -56,29 +56,16 @@ export async function applyPurchaseValidation(
     return { ok: false, error: "Token not found." };
   }
 
-  // Invariant: purchase time ≥ buyer claim time ⇒ originator→purchase gap
-  // is always ≥ originator→buyer-claim gap (time_to_purchase_hours baseline).
-  if (
-    new Date(purchase.created_at).getTime() <
-    new Date(token.created_at).getTime()
-  ) {
+  // Invariant: receipt purchase time ≥ buyer claim time.
+  const purchasedAt = purchase.receipt_purchased_at
+    ? new Date(purchase.receipt_purchased_at)
+    : new Date(purchase.created_at);
+  if (purchasedAt.getTime() < new Date(token.created_at).getTime()) {
     return {
       ok: false,
-      error: "Purchase time cannot be before the buyer’s coupon claim.",
+      error: "Receipt purchase time cannot be before the buyer’s coupon claim.",
     };
   }
-
-  const [{ data: product }, { data: store }, { data: offer }] =
-    await Promise.all([
-      supabase.from("products").select("*").eq("id", token.product_id).single(),
-      purchase.store_id
-        ? supabase.from("stores").select("*").eq("id", purchase.store_id).single()
-        : Promise.resolve({ data: null }),
-      supabase.from("offers").select("*").eq("id", token.offer_id).single(),
-    ]);
-
-  if (!product) return { ok: false, error: "Product not found." };
-  if (!offer) return { ok: false, error: "Offer not found." };
 
   const fetchParentToken = async (parentId: string) => {
     const { data } = await supabase
@@ -89,15 +76,35 @@ export async function applyPurchaseValidation(
     return data as Token | null;
   };
 
+  const chain = await buildTokenChain(token, fetchParentToken);
+  const root = chain[0];
+  const originatorStoreId =
+    root.originator_store_id ?? token.originator_store_id ?? purchase.store_id;
+
+  const [{ data: product }, { data: originatorStore }, { data: offer }] =
+    await Promise.all([
+      supabase.from("products").select("*").eq("id", token.product_id).single(),
+      originatorStoreId
+        ? supabase
+            .from("stores")
+            .select("*")
+            .eq("id", originatorStoreId)
+            .single()
+        : Promise.resolve({ data: null }),
+      supabase.from("offers").select("*").eq("id", token.offer_id).single(),
+    ]);
+
+  if (!product) return { ok: false, error: "Product not found." };
+  if (!offer) return { ok: false, error: "Offer not found." };
+
   const flags = await computePurchaseSignalFlags({
     purchase,
     token,
     product,
-    store: store ?? null,
+    originatorStore: originatorStore ?? null,
     fetchParentToken,
   });
 
-  const chain = await buildTokenChain(token, fetchParentToken);
   const genuineness = computeGenuinenessScore(flags, chain, purchase);
 
   const amount = Number(purchase.amount);

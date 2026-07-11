@@ -152,7 +152,10 @@ export function computeHopDetails(
 
 export function buildDisplayHops(
   chain: Token[],
-  purchase: Pick<Purchase, "purchase_lat" | "purchase_lng" | "created_at">,
+  purchase: Pick<
+    Purchase,
+    "purchase_lat" | "purchase_lng" | "created_at" | "receipt_purchased_at"
+  >,
   scoring: ReturnType<typeof computeOriginatorToBuyerClaimGap>,
 ): HopDetail[] {
   return computeHopDetails(
@@ -166,7 +169,10 @@ export function buildDisplayHops(
 export function computeGenuinenessScore(
   flags: Pick<SignalFlags, "within_window" | "barcode_match" | "store_match">,
   chain: Token[],
-  purchase: Pick<Purchase, "purchase_lat" | "purchase_lng" | "created_at">,
+  purchase: Pick<
+    Purchase,
+    "purchase_lat" | "purchase_lng" | "created_at" | "receipt_purchased_at"
+  >,
 ): GenuinenessResult {
   const scoring = computeOriginatorToBuyerClaimGap(chain);
   const hops = buildDisplayHops(chain, purchase, scoring);
@@ -202,10 +208,10 @@ export function computeGenuinenessScore(
   if (!flags.store_match) {
     score *= STORE_MISS_MULTIPLIER;
     reasons.push(
-      `Store miss × ${STORE_MISS_MULTIPLIER} → ${score.toFixed(3)}`,
+      `Store miss × ${STORE_MISS_MULTIPLIER} (purchase GPS not within range of originator store) → ${score.toFixed(3)}`,
     );
   } else {
-    reasons.push("Store matched (within range)");
+    reasons.push("Store matched (purchase GPS at originator store)");
   }
 
   if (scoring.suspicious) {

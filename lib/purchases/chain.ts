@@ -27,7 +27,10 @@ export async function buildTokenChain(
 
 export function chainPointsWithPurchase(
   chain: Token[],
-  purchase: Pick<Purchase, "purchase_lat" | "purchase_lng" | "created_at">,
+  purchase: Pick<
+    Purchase,
+    "purchase_lat" | "purchase_lng" | "created_at" | "receipt_purchased_at"
+  >,
 ): ChainPoint[] {
   const points: ChainPoint[] = chain.map((t) => ({
     lat: t.claim_lat,
@@ -38,7 +41,7 @@ export function chainPointsWithPurchase(
   points.push({
     lat: purchase.purchase_lat,
     lng: purchase.purchase_lng,
-    at: purchase.created_at,
+    at: purchase.receipt_purchased_at ?? purchase.created_at,
   });
 
   return points;

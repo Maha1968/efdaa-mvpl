@@ -114,6 +114,12 @@ export default async function PurchaseResultPage({ params }: PageProps) {
           <p className="mt-1 text-sm text-zinc-600">
             {product?.name ?? "Product"} · {store?.name ?? "Store"} · ₹{amount}
           </p>
+          {purchase.receipt_purchased_at ? (
+            <p className="mt-1 text-sm text-zinc-500">
+              Receipt time:{" "}
+              {new Date(purchase.receipt_purchased_at).toLocaleString()}
+            </p>
+          ) : null}
         </div>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">

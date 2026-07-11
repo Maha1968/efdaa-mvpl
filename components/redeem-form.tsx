@@ -10,20 +10,28 @@ import type { Product, Store } from "@/types/database";
 type RedeemFormProps = {
   tokenCode: string;
   product: Product;
-  stores: Store[];
+  /** Locked to the originator's store for this recommendation. */
+  originatorStore: Store;
   userId: string;
 };
+
+function toDatetimeLocalValue(d: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export function RedeemForm({
   tokenCode,
   product,
-  stores,
+  originatorStore,
   userId,
 }: RedeemFormProps) {
-  const [storeId, setStoreId] = useState(stores[0]?.id ?? "");
   const [amount, setAmount] = useState(product.price.toString());
   const [receiptBarcode, setReceiptBarcode] = useState(product.barcode);
   const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
+  const [receiptPurchasedAt, setReceiptPurchasedAt] = useState(
+    toDatetimeLocalValue(new Date()),
+  );
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     null,
   );
@@ -51,11 +59,6 @@ export function RedeemForm({
     event.preventDefault();
     setError(null);
 
-    if (!storeId) {
-      setError("Please select a store.");
-      return;
-    }
-
     const parsedAmount = Number(amount);
     if (!parsedAmount || parsedAmount <= 0) {
       setError("Please enter a valid purchase amount.");
@@ -64,6 +67,11 @@ export function RedeemForm({
 
     if (!receiptBarcode.trim()) {
       setError("Please enter the barcode from your receipt.");
+      return;
+    }
+
+    if (!receiptPurchasedAt) {
+      setError("Please enter the date and time printed on your receipt.");
       return;
     }
 
@@ -81,15 +89,17 @@ export function RedeemForm({
 
     try {
       const receiptImageUrl = await uploadReceipt(receiptPhoto);
+      const receiptIso = new Date(receiptPurchasedAt).toISOString();
 
       const result = await createPurchase({
         tokenCode,
-        storeId,
+        storeId: originatorStore.id,
         amount: parsedAmount,
         receiptBarcode: receiptBarcode.trim(),
         receiptImageUrl,
         purchaseLat: coords.lat,
         purchaseLng: coords.lng,
+        receiptPurchasedAt: receiptIso,
       });
 
       if (result?.error) {
@@ -114,23 +124,20 @@ export function RedeemForm({
         <p className="mt-1 text-sm text-zinc-600">₹{product.price}</p>
       </div>
 
-      <div>
-        <label htmlFor="store" className="mb-1.5 block text-sm font-medium text-zinc-700">
-          Store where you bought it
-        </label>
-        <select
-          id="store"
-          value={storeId}
-          onChange={(e) => setStoreId(e.target.value)}
-          className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-        >
-          {stores.map((store) => (
-            <option key={store.id} value={store.id}>
-              {store.name}
-              {store.address ? ` — ${store.address}` : ""}
-            </option>
-          ))}
-        </select>
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+        <p className="text-sm font-medium text-emerald-900">
+          Originator&apos;s store (required)
+        </p>
+        <p className="mt-1 text-base font-semibold text-zinc-900">
+          {originatorStore.name}
+        </p>
+        {originatorStore.address ? (
+          <p className="mt-1 text-sm text-zinc-600">{originatorStore.address}</p>
+        ) : null}
+        <p className="mt-2 text-xs text-zinc-600">
+          Purchase GPS should be at this store. Farther than 50 m reduces the
+          genuineness score sharply (×0.01).
+        </p>
       </div>
 
       <LocationCapture
@@ -160,6 +167,26 @@ export function RedeemForm({
 
       <div>
         <label
+          htmlFor="receipt-purchased-at"
+          className="mb-1.5 block text-sm font-medium text-zinc-700"
+        >
+          Date &amp; time on receipt
+        </label>
+        <p className="mb-2 text-sm text-zinc-500">
+          Enter exactly as printed on the invoice — this is the purchase time.
+        </p>
+        <input
+          id="receipt-purchased-at"
+          type="datetime-local"
+          required
+          value={receiptPurchasedAt}
+          onChange={(e) => setReceiptPurchasedAt(e.target.value)}
+          className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+        />
+      </div>
+
+      <div>
+        <label
           htmlFor="receipt-barcode"
           className="mb-1.5 block text-sm font-medium text-zinc-700"
         >
@@ -179,7 +206,7 @@ export function RedeemForm({
       <PhotoUpload
         id="receipt-photo"
         label="Receipt photo"
-        hint="Photograph your store receipt."
+        hint="Photograph your store receipt (showing the date/time)."
         value={receiptPhoto}
         onChange={setReceiptPhoto}
       />

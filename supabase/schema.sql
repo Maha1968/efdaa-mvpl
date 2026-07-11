@@ -67,6 +67,8 @@ create table public.tokens (
   claim_lat double precision,
   claim_lng double precision,
   claim_location_text text,
+  -- Store the originator recommended from (set on root; copied to children).
+  originator_store_id uuid references public.stores (id),
   expires_at timestamptz not null,
   created_at timestamptz not null default now()
 );
@@ -86,6 +88,8 @@ create table public.purchases (
   amount numeric(12, 2) not null,
   receipt_image_url text,
   receipt_barcode text,
+  -- Date/time printed on the receipt (purchase duration baseline).
+  receipt_purchased_at timestamptz,
   status text not null default 'pending'
     check (status in ('pending', 'validated', 'rejected')),
   barcode_match boolean,
