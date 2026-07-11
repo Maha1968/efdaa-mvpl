@@ -100,7 +100,8 @@ and WHEN that person claimed/created it.
 - `status` — `pending` | `validated` | `rejected`
 - Signal flags (computed at validation):
   - `barcode_match`, `store_match`, `within_window`
-  - `time_to_purchase_hours`
+  - `time_to_purchase_hours` — hours from **originator claim** to purchase. Always ≥ the
+    originator→buyer-claim gap (purchase cannot precede the redeemed token’s claim).
   - `min_hop_distance_m` — distance (m) between **originator claim** and **buyer token claim**
     (the proximity scoring gap; not consecutive mid-chain hops)
   - `min_hop_time_minutes` — time gap (minutes) for that same originator ↔ buyer-claim pair
@@ -120,7 +121,10 @@ and WHEN that person claimed/created it.
    `claim_lat/lng` and `created_at` = the claimer's captured location + time.
 4. **Reject forwards where `depth > 4`.**
 5. **Reject any action after `expires_at`.** An expired link shows "This offer has expired."
-6. Trace a chain: from the redeemed token follow `parent_token_id` up to the root (recursive CTE).
+6. **Reject purchase if `purchase.created_at` is before the redeemed token’s claim
+   (`token.created_at`).** Consequently `time_to_purchase_hours` (originator → purchase) is
+   never less than the originator → buyer-claim gap.
+7. Trace a chain: from the redeemed token follow `parent_token_id` up to the root (recursive CTE).
 
 ---
 
@@ -398,7 +402,9 @@ HARD RULES FOR THE SEED
   that same store GPS — same store_match rule as production), placeholder images.
 - **Invariant:** purchase `created_at` is always **after** the redeemed token’s claim time
   (typically ~20–30 minutes later in the short /demo chains). Purchase GPS is the partner
-  store coordinates (≈ 0 m vs store), not the buyer’s claim place.
+  store coordinates (≈ 0 m vs store), not the buyer’s claim place. Display purchase timing
+  from the **originator** baseline (e.g. claim at +8 h → purchase at +8 h 25 min), so the
+  checkout gap is always greater than the claim gap.
 
 SEED SHAPE (Vercel-safe compact fanouts)
 - Branching depth-4 trees: parent → child → grandchild → great-grandchild.
@@ -477,10 +483,11 @@ MAIN: three columns on wide screens (stack on mobile) —
   - **The purchase (from invoice):** product, barcode, receipt thumbnail, **store name + address**
     from the selected partner store on the receipt, **distance from purchase GPS to that store**
     (≈ 0 m when at store — this is the store_match evidence, not claim place), purchase time,
-    minutes after buyer claim, amount.
-  - Optional **Travel: buyer claim → checkout** hop: how far/long from where they opened the
-    coupon to the store (display only; does not affect genuineness). Do not present this as
-    “purchase distance from store.”
+    **time from originator claim** (always ≥ buyer-claim gap, e.g. 8 h 25 min when claim was at
+    8 h), amount.
+  - Optional **Checkout vs originator** hop: distance = buyer claim place → store; **time =
+    originator claim → purchase** (same baseline as the scoring hop). Do not present claim→
+    checkout minutes alone as the purchase gap.
   - Large colour-coded genuineness score; plain-English pass/fail checks; reward pool and role
     split. Explicit copy that expired chains keep a full attribution record and still pay the floor.
 
@@ -527,8 +534,8 @@ hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
       originator expand has level aggregates only (no PII/codes); forwarder/buyer lists privacy-safe;
       Buy using EFDAA points still links to /efdaagifts; admins redirected away.
 - [ ] Stage 7G: Public /demo shows Genuine / Proximity / Expired; buyer claim separate from
-      invoice purchase (store name+address); purchase-vs-store ≈ 0 m at Koramangala; travel hop
-      is claim→checkout only; purchase after buyer claim (~25 min in seed); scoring hop =
+      invoice purchase (store name+address); purchase-vs-store ≈ 0 m at Koramangala; checkout
+      time shown from originator (always ≥ claim gap, e.g. 8 h 25 min); scoring hop =
       originator↔buyer claim; mobile at 375px.
 
 ---

@@ -30,6 +30,14 @@ function scoreWord(band: DemoPresentationChain["scoreBand"]) {
   return "Zero";
 }
 
+function formatDurationMinutes(minutes: number): string {
+  if (minutes < 60) return `${Math.round(minutes)} min`;
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes - h * 60);
+  if (m <= 0) return `${h} h`;
+  return `${h} h ${m} min`;
+}
+
 function roleLabel(role: string) {
   if (role === "originator") return "Originator";
   if (role === "last_referrer") return "Last referrer";
@@ -190,8 +198,8 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
         {chain.claimToPurchaseHop ? (
           <HopBox
             hop={chain.claimToPurchaseHop}
-            title="Travel: buyer claim → checkout"
-            subtitle="How far/long from where they opened the coupon to the store (not the store-match check)"
+            title="Checkout vs originator"
+            subtitle="Distance: buyer claim place → store · Time: originator claim → purchase (must exceed claim gap)"
           />
         ) : null}
 
@@ -235,12 +243,12 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
             ) : null}
             <p className="mt-1 text-xs text-zinc-500">
               Purchased {new Date(chain.purchaseAt).toLocaleString()}
-              {chain.minutesClaimToPurchase != null
-                ? ` · ${
-                    chain.minutesClaimToPurchase < 60
-                      ? `${Math.round(chain.minutesClaimToPurchase)} min`
-                      : `${(chain.minutesClaimToPurchase / 60).toFixed(1)} h`
-                  } after buyer claim`
+              {chain.minutesOriginToPurchase != null
+                ? ` · ${formatDurationMinutes(chain.minutesOriginToPurchase)} from originator claim`
+                : ""}
+              {chain.minutesClaimToPurchase != null &&
+              chain.minutesClaimToPurchase > 0
+                ? ` (${formatDurationMinutes(chain.minutesClaimToPurchase)} after buyer claim)`
                 : ""}
             </p>
             <p className="mt-2 text-lg font-semibold text-zinc-900">

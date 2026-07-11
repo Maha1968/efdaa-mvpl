@@ -46,7 +46,8 @@ export async function createPurchase(input: CreatePurchaseInput) {
     return { error: "This offer has expired." };
   }
 
-  // Purchase cannot precede this token's claim time.
+  // Purchase cannot precede this token's claim — so originator→purchase
+  // gap is always ≥ originator→buyer-claim gap.
   if (new Date(token.created_at).getTime() > Date.now()) {
     return { error: "Cannot purchase before this coupon was claimed." };
   }

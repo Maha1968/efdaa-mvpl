@@ -56,6 +56,18 @@ export async function applyPurchaseValidation(
     return { ok: false, error: "Token not found." };
   }
 
+  // Invariant: purchase time ≥ buyer claim time ⇒ originator→purchase gap
+  // is always ≥ originator→buyer-claim gap (time_to_purchase_hours baseline).
+  if (
+    new Date(purchase.created_at).getTime() <
+    new Date(token.created_at).getTime()
+  ) {
+    return {
+      ok: false,
+      error: "Purchase time cannot be before the buyer’s coupon claim.",
+    };
+  }
+
   const [{ data: product }, { data: store }, { data: offer }] =
     await Promise.all([
       supabase.from("products").select("*").eq("id", token.product_id).single(),

@@ -65,7 +65,14 @@ export type DemoPresentationChain = {
   purchaseVsStoreMeters: number | null;
   purchaseAt: string;
   purchaseCoords: string | null;
-  /** Minutes from buyer claim to purchase (must be ≥ 0). */
+  /** Minutes from originator claim → buyer claim (same baseline as scoring hop). */
+  minutesOriginToBuyerClaim: number | null;
+  /**
+   * Minutes from originator claim → purchase. Must be ≥ minutesOriginToBuyerClaim
+   * (purchase cannot precede the buyer’s claim).
+   */
+  minutesOriginToPurchase: number | null;
+  /** Minutes from buyer claim → purchase (travel leg only; display secondary). */
   minutesClaimToPurchase: number | null;
   amount: number;
   receiptImageUrl: string | null;
@@ -227,6 +234,14 @@ async function loadOneChain(
     genuinenessScore: score,
   });
 
+  function formatDurationMinutes(minutes: number): string {
+    if (minutes < 60) return `${Math.round(minutes)} min`;
+    const h = Math.floor(minutes / 60);
+    const m = Math.round(minutes - h * 60);
+    if (m <= 0) return `${h} h`;
+    return `${h} h ${m} min`;
+  }
+
   function formatHopLabel(h: {
     distance_m: number | null;
     time_minutes: number | null;
@@ -238,11 +253,7 @@ async function loadOneChain(
           : `${(h.distance_m / 1000).toFixed(1)} km`
         : "—";
     const time =
-      h.time_minutes != null
-        ? h.time_minutes < 60
-          ? `${Math.round(h.time_minutes)} min`
-          : `${(h.time_minutes / 60).toFixed(1)} h`
-        : "—";
+      h.time_minutes != null ? formatDurationMinutes(h.time_minutes) : "—";
     return `${dist} · ${time}`;
   }
 
@@ -278,12 +289,50 @@ async function loadOneChain(
   // genuineness.hops = consecutive (claims…→purchase) + scoring hop at end
   const consecutive = genuineness.hops.filter((h) => !h.scoresProximity);
   const claimHops = consecutive.slice(0, Math.max(chain.length - 1, 0)).map(toDemoHop);
-  const claimToPurchaseHop =
-    consecutive.length >= chain.length
-      ? toDemoHop(consecutive[chain.length - 1])
-      : null;
   const scoringRaw = genuineness.hops.find((h) => h.scoresProximity);
   const scoringHop = scoringRaw ? toDemoHop(scoringRaw) : null;
+
+  const originator = chain[0];
+  const buyerClaim = chain[chain.length - 1];
+  const minutesOriginToBuyerClaim =
+    originator && buyerClaim
+      ? Number(
+          (
+            (new Date(buyerClaim.created_at).getTime() -
+              new Date(originator.created_at).getTime()) /
+            60_000
+          ).toFixed(1),
+        )
+      : null;
+  const minutesOriginToPurchase = originator
+    ? Number(
+        (
+          (new Date(purchase.created_at).getTime() -
+            new Date(originator.created_at).getTime()) /
+          60_000
+        ).toFixed(1),
+      )
+    : null;
+  const minutesClaimToPurchase = buyerClaim
+    ? Number(
+        (
+          (new Date(purchase.created_at).getTime() -
+            new Date(buyerClaim.created_at).getTime()) /
+          60_000
+        ).toFixed(1),
+      )
+    : null;
+
+  // Travel hop: distance = claim place → store; time = originator → purchase
+  // (same baseline as the scoring hop, so checkout gap is always ≥ claim gap).
+  const claimToPurchaseRaw =
+    consecutive.length >= chain.length ? consecutive[chain.length - 1] : null;
+  const claimToPurchaseHop = claimToPurchaseRaw
+    ? toDemoHop({
+        ...claimToPurchaseRaw,
+        time_minutes: minutesOriginToPurchase,
+      })
+    : null;
 
   let purchaseVsStoreMeters: number | null = null;
   if (
@@ -301,17 +350,6 @@ async function loadOneChain(
       ).toFixed(1),
     );
   }
-
-  const buyerClaim = chain[chain.length - 1];
-  const minutesClaimToPurchase = buyerClaim
-    ? Number(
-        (
-          (new Date(purchase.created_at).getTime() -
-            new Date(buyerClaim.created_at).getTime()) /
-          60_000
-        ).toFixed(1),
-      )
-    : null;
 
   const suspiciousHop = scoringRaw;
   const checks: DemoCheck[] = [
@@ -372,6 +410,8 @@ async function loadOneChain(
     purchaseVsStoreMeters,
     purchaseAt: purchase.created_at,
     purchaseCoords: formatCoords(purchase.purchase_lat, purchase.purchase_lng),
+    minutesOriginToBuyerClaim,
+    minutesOriginToPurchase,
     minutesClaimToPurchase,
     amount: Number(purchase.amount),
     receiptImageUrl: purchase.receipt_image_url,
