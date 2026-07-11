@@ -9,6 +9,7 @@ import {
   MIN_GENUINE_TIME_MINUTES,
   ZERO_SCORE_FLOOR_REWARD_PCT,
 } from "@/config/rewards";
+import { haversineMeters } from "@/lib/geo/haversine";
 import { STORE_MATCH_MAX_DISTANCE_M } from "@/lib/purchases/validation";
 
 export type DemoChainKind = "genuine" | "proximity" | "expired";
@@ -60,8 +61,12 @@ export type DemoPresentationChain = {
   barcode: string;
   storeName: string;
   storeAddress: string | null;
+  /** Metres from purchase GPS to selected partner store (should be ~0 when at store). */
+  purchaseVsStoreMeters: number | null;
   purchaseAt: string;
   purchaseCoords: string | null;
+  /** Minutes from buyer claim to purchase (must be ≥ 0). */
+  minutesClaimToPurchase: number | null;
   amount: number;
   receiptImageUrl: string | null;
   score: number;
@@ -280,6 +285,34 @@ async function loadOneChain(
   const scoringRaw = genuineness.hops.find((h) => h.scoresProximity);
   const scoringHop = scoringRaw ? toDemoHop(scoringRaw) : null;
 
+  let purchaseVsStoreMeters: number | null = null;
+  if (
+    store?.lat != null &&
+    store?.lng != null &&
+    purchase.purchase_lat != null &&
+    purchase.purchase_lng != null
+  ) {
+    purchaseVsStoreMeters = Number(
+      haversineMeters(
+        purchase.purchase_lat,
+        purchase.purchase_lng,
+        store.lat,
+        store.lng,
+      ).toFixed(1),
+    );
+  }
+
+  const buyerClaim = chain[chain.length - 1];
+  const minutesClaimToPurchase = buyerClaim
+    ? Number(
+        (
+          (new Date(purchase.created_at).getTime() -
+            new Date(buyerClaim.created_at).getTime()) /
+          60_000
+        ).toFixed(1),
+      )
+    : null;
+
   const suspiciousHop = scoringRaw;
   const checks: DemoCheck[] = [
     {
@@ -336,8 +369,10 @@ async function loadOneChain(
     barcode: product?.barcode ?? purchase.receipt_barcode ?? "—",
     storeName: store?.name ?? "Store",
     storeAddress: store?.address ?? null,
+    purchaseVsStoreMeters,
     purchaseAt: purchase.created_at,
     purchaseCoords: formatCoords(purchase.purchase_lat, purchase.purchase_lng),
+    minutesClaimToPurchase,
     amount: Number(purchase.amount),
     receiptImageUrl: purchase.receipt_image_url,
     score,

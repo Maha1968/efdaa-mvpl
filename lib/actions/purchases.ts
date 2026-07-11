@@ -46,6 +46,11 @@ export async function createPurchase(input: CreatePurchaseInput) {
     return { error: "This offer has expired." };
   }
 
+  // Purchase cannot precede this token's claim time.
+  if (new Date(token.created_at).getTime() > Date.now()) {
+    return { error: "Cannot purchase before this coupon was claimed." };
+  }
+
   if (await hasTokenBeenRedeemed(supabase, token.id)) {
     return { error: "This token has already been redeemed." };
   }

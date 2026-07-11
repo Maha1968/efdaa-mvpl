@@ -396,6 +396,9 @@ HARD RULES FOR THE SEED
 - Realistic Bengaluru coordinates, multiple demo products, one partner store
   (originator recommends at that store; recipients may claim anywhere; purchases redeem at
   that same store GPS — same store_match rule as production), placeholder images.
+- **Invariant:** purchase `created_at` is always **after** the redeemed token’s claim time
+  (typically ~20–30 minutes later in the short /demo chains). Purchase GPS is the partner
+  store coordinates (≈ 0 m vs store), not the buyer’s claim place.
 
 SEED SHAPE (Vercel-safe compact fanouts)
 - Branching depth-4 trees: parent → child → grandchild → great-grandchild.
@@ -404,7 +407,9 @@ SEED SHAPE (Vercel-safe compact fanouts)
 - Partner store: EFDAA Partner Store, Koramangala — originators claim there; purchases redeem
   there (store_match = purchase GPS within 500m of that store).
 - Intermediate claims may be elsewhere (km hops). Proximity demo: buyer claims near originator
-  and too soon. Genuine demo: buyer claims far / with enough time, then buys at the store.
+  and too soon, then later checks out at the Koramangala store. Genuine demo: buyer claims far
+  / with enough time (e.g. BTM), then buys at the store ~25 min after claim. Expired demo:
+  claim inside window, purchase after expiry → score 0 + floor.
 - Sample depth-4 leaves redeem via the real validation path so Network / Purchases / Rewards
   show engine-computed numbers.
 - Seed logs referral_events (opened on depth≥1 tokens, claimed, redeemed). Opens on Overview
@@ -470,8 +475,12 @@ MAIN: three columns on wide screens (stack on mobile) —
   - Highlighted **Scores genuineness** hop: originator claim ↔ buyer claim (what drives the
     proximity penalty; thresholds from config).
   - **The purchase (from invoice):** product, barcode, receipt thumbnail, **store name + address**
-    from the selected partner store on the receipt, purchase GPS/time, amount; plus claim→purchase
-    hop for context.
+    from the selected partner store on the receipt, **distance from purchase GPS to that store**
+    (≈ 0 m when at store — this is the store_match evidence, not claim place), purchase time,
+    minutes after buyer claim, amount.
+  - Optional **Travel: buyer claim → checkout** hop: how far/long from where they opened the
+    coupon to the store (display only; does not affect genuineness). Do not present this as
+    “purchase distance from store.”
   - Large colour-coded genuineness score; plain-English pass/fail checks; reward pool and role
     split. Explicit copy that expired chains keep a full attribution record and still pay the floor.
 
@@ -518,7 +527,9 @@ hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
       originator expand has level aggregates only (no PII/codes); forwarder/buyer lists privacy-safe;
       Buy using EFDAA points still links to /efdaagifts; admins redirected away.
 - [ ] Stage 7G: Public /demo shows Genuine / Proximity / Expired; buyer claim separate from
-      invoice purchase (store name+address); scoring hop = originator↔buyer claim; mobile at 375px.
+      invoice purchase (store name+address); purchase-vs-store ≈ 0 m at Koramangala; travel hop
+      is claim→checkout only; purchase after buyer claim (~25 min in seed); scoring hop =
+      originator↔buyer claim; mobile at 375px.
 
 ---
 

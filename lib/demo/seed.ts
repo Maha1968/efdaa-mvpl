@@ -95,6 +95,7 @@ type TokenRow = {
   holder_user_id: string;
   depth: number;
   expires_at: string;
+  created_at: string;
 };
 
 function hoursAgo(h: number) {
@@ -271,7 +272,7 @@ async function createTokenNode(input: {
       created_at: input.at.toISOString(),
       is_demo: true,
     })
-    .select("id, code, holder_user_id, depth, expires_at")
+    .select("id, code, holder_user_id, depth, expires_at, created_at")
     .single();
 
   if (error || !data) {
@@ -339,12 +340,18 @@ async function validateLeafPurchase(input: {
   codes: string[];
 }): Promise<ChainSeedReport> {
   const { admin, leaf } = input;
+  if (input.at.getTime() <= new Date(leaf.created_at).getTime()) {
+    throw new Error(
+      `${input.label}: purchase time must be after buyer claim (${leaf.code})`,
+    );
+  }
   const { data: purchase, error } = await admin
     .from("purchases")
     .insert({
       token_id: leaf.id,
       buyer_user_id: leaf.holder_user_id,
       store_id: input.storeId,
+      // Always at partner store GPS — store_match distance ≈ 0 m (not claim place).
       purchase_lat: STORE.lat,
       purchase_lng: STORE.lng,
       amount: input.amount,
@@ -526,12 +533,13 @@ async function growDepth4Tree(input: {
   for (const leaf of leaves) {
     leafIdx += 1;
     if (leafIdx % redeemEveryNthLeaf !== 0) continue;
-    const purchaseAt = minutesAfter(hoursAfter(t0, 20), leafIdx * 3);
-    // Keep purchase inside window
+    // Purchase must be after this leaf's claim (~25 min), and still inside the window.
+    const afterClaim = minutesAfter(new Date(leaf.created_at), 25);
     const safeAt =
-      purchaseAt.getTime() < expiresAt.getTime()
-        ? purchaseAt
-        : minutesAfter(expiresAt, -30);
+      afterClaim.getTime() < expiresAt.getTime()
+        ? afterClaim
+        : minutesAfter(expiresAt, -15);
+    if (safeAt.getTime() <= new Date(leaf.created_at).getTime()) continue;
 
     reports.push(
       await validateLeafPurchase({
@@ -769,7 +777,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
         storeId: store.id,
         barcode: product.barcode,
         amount: product.price,
-        at: hoursAfter(t0, 12),
+        // Purchase after buyer claim (~25 min), at partner store GPS.
+        at: minutesAfter(hoursAfter(t0, 8), 25),
         codes: [A.code, B.code, C.code],
       }),
     );
@@ -819,7 +828,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
         storeId: store.id,
         barcode: product.barcode,
         amount: product.price,
-        at: minutesAfter(t0, 3),
+        // Claim near originator (scores reduced); checkout later at Koramangala store.
+        at: minutesAfter(t0, 2 + 25),
         codes: [A.code, B.code],
       }),
     );
@@ -871,7 +881,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       offerId: offer.id,
       barcode: product.barcode,
       place: placeAt(placeCounter.n++),
-      at: hoursAfter(t0, 10),
+      at: hoursAfter(t0, 20),
       expiresAt,
     });
     rootCodes.push(A.code);
@@ -884,7 +894,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
         storeId: store.id,
         barcode: product.barcode,
         amount: product.price,
-        at: hoursAfter(t0, 30),
+        // After claim, but after chain expiry → score 0 + floor.
+        at: minutesAfter(expiresAt, 45),
         codes: [A.code, B.code, C.code],
       }),
     );

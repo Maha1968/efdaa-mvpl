@@ -190,8 +190,8 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
         {chain.claimToPurchaseHop ? (
           <HopBox
             hop={chain.claimToPurchaseHop}
-            title="Buyer claim → purchase"
-            subtitle="Time/place change from coupon claim to checkout"
+            title="Travel: buyer claim → checkout"
+            subtitle="How far/long from where they opened the coupon to the store (not the store-match check)"
           />
         ) : null}
 
@@ -212,12 +212,22 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
             <p className="font-semibold text-zinc-900">{chain.productName}</p>
             <p className="mt-1 font-mono text-xs">{chain.barcode}</p>
             <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Store of purchase
+              Store of purchase (from invoice)
             </p>
             <p className="mt-0.5 font-medium text-zinc-900">{chain.storeName}</p>
             {chain.storeAddress ? (
               <p className="mt-0.5 text-sm text-zinc-600">{chain.storeAddress}</p>
             ) : null}
+            <p className="mt-2 text-sm font-medium text-zinc-900">
+              Distance to selected store GPS:{" "}
+              {chain.purchaseVsStoreMeters != null
+                ? `${chain.purchaseVsStoreMeters.toFixed(0)} m`
+                : "—"}
+              {chain.purchaseVsStoreMeters != null &&
+              chain.purchaseVsStoreMeters < 50
+                ? " (at store)"
+                : ""}
+            </p>
             {chain.purchaseCoords ? (
               <p className="mt-1 font-mono text-xs text-zinc-500">
                 Purchase GPS {chain.purchaseCoords}
@@ -225,6 +235,13 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
             ) : null}
             <p className="mt-1 text-xs text-zinc-500">
               Purchased {new Date(chain.purchaseAt).toLocaleString()}
+              {chain.minutesClaimToPurchase != null
+                ? ` · ${
+                    chain.minutesClaimToPurchase < 60
+                      ? `${Math.round(chain.minutesClaimToPurchase)} min`
+                      : `${(chain.minutesClaimToPurchase / 60).toFixed(1)} h`
+                  } after buyer claim`
+                : ""}
             </p>
             <p className="mt-2 text-lg font-semibold text-zinc-900">
               ₹{chain.amount.toFixed(2)}
