@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
 import { DashboardNav, ADMIN_NAV } from "@/components/dashboard-nav";
 import { toPublicUserId } from "@/lib/privacy/user-id";
+import { formatRewardAmount } from "@/lib/purchases/rewards";
 import { notFound, redirect } from "next/navigation";
 import type { Token } from "@/types/database";
 
@@ -109,8 +110,8 @@ export default async function AdminOverviewPage() {
             ["Opens (logged)", openEvents ?? 0],
             ["Forwards", forwards.length],
             ["Purchases", purchases?.length ?? 0],
-            ["Purchase value", `₹${purchaseValue.toFixed(0)}`],
-            ["Rewards issued", `₹${rewardValue.toFixed(0)}`],
+            ["Purchase value", `₹${purchaseValue.toFixed(2)}`],
+            ["Rewards issued", `₹${formatRewardAmount(rewardValue)}`],
             ["Tokens total", allTokens.length],
             ["Active origins", originators.filter((t) => new Date(t.expires_at) > new Date()).length],
           ].map(([label, value]) => (

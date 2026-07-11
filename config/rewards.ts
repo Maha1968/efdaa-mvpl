@@ -12,6 +12,15 @@ export const TOKEN_VALIDITY_HOURS = 24;
 /** Default offer base reward (0.05 = 5% of purchase amount). Also stored per offer. */
 export const DEFAULT_BASE_REWARD_PCT = 0.05;
 
+/**
+ * Pilot floor: when genuineness_score is 0 (or the scored pool is 0), still pay this
+ * fraction of purchase amount (0.001 = 0.1%). Tunable post-launch.
+ */
+export const ZERO_SCORE_FLOOR_REWARD_PCT = 0.001;
+
+/** Decimal places for stored/displayed reward amounts (points). Tunable post-launch. */
+export const REWARD_DISPLAY_DECIMALS = 2;
+
 /** Genuineness score multipliers (applied to a base of 1.0). */
 export const BARCODE_MISS_MULTIPLIER = 0.5;
 export const STORE_MISS_MULTIPLIER = 0.7;

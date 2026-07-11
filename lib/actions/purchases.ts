@@ -4,7 +4,11 @@ import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
 import { computePurchaseSignalFlags } from "@/lib/purchases/validation";
 import { computeGenuinenessScore } from "@/lib/purchases/genuineness";
-import { computeRewardSplit } from "@/lib/purchases/rewards";
+import {
+  computeBasePool,
+  computeRewardSplit,
+  roundRewardAmount,
+} from "@/lib/purchases/rewards";
 import { buildTokenChain } from "@/lib/purchases/chain";
 import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
 import { logReferralEvent } from "@/lib/actions/events";
@@ -170,13 +174,11 @@ export async function validatePurchase(purchaseId: string) {
   const genuineness = computeGenuinenessScore(flags, chain, purchase);
 
   const amount = Number(purchase.amount);
-  const basePool = Number(
-    (
-      amount *
-      Number(offer.base_reward_pct) *
-      genuineness.genuineness_score
-    ).toFixed(2),
-  );
+  const { basePool } = computeBasePool({
+    amount,
+    baseRewardPct: Number(offer.base_reward_pct),
+    genuinenessScore: genuineness.genuineness_score,
+  });
 
   const allocations = computeRewardSplit({
     chain,
@@ -202,7 +204,7 @@ export async function validatePurchase(purchaseId: string) {
   if (payableWeight > 0 && basePool > 0) {
     payable = payable.map((a) => ({
       ...a,
-      amount: Number(((basePool * a.weight) / payableWeight).toFixed(2)),
+      amount: roundRewardAmount((basePool * a.weight) / payableWeight),
     }));
   } else {
     payable = [];

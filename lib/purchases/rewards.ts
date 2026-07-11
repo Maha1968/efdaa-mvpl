@@ -1,5 +1,9 @@
 import type { RewardRole, Token } from "@/types/database";
-import { ROLE_WEIGHTS } from "@/config/rewards";
+import {
+  REWARD_DISPLAY_DECIMALS,
+  ROLE_WEIGHTS,
+  ZERO_SCORE_FLOOR_REWARD_PCT,
+} from "@/config/rewards";
 
 export type RewardAllocation = {
   user_id: string;
@@ -7,6 +11,47 @@ export type RewardAllocation = {
   weight: number;
   amount: number;
 };
+
+export type BasePoolResult = {
+  basePool: number;
+  /** amount × offer% × score before floor */
+  scoredPool: number;
+  usedZeroScoreFloor: boolean;
+};
+
+/** Round money/points to REWARD_DISPLAY_DECIMALS. */
+export function roundRewardAmount(value: number): number {
+  const factor = 10 ** REWARD_DISPLAY_DECIMALS;
+  return Math.round(value * factor) / factor;
+}
+
+export function formatRewardAmount(value: number): string {
+  return roundRewardAmount(value).toFixed(REWARD_DISPLAY_DECIMALS);
+}
+
+/**
+ * base_pool = amount × offer.base_reward_pct × genuineness_score.
+ * If that is 0, apply ZERO_SCORE_FLOOR_REWARD_PCT of purchase amount (pilot floor).
+ */
+export function computeBasePool(input: {
+  amount: number;
+  baseRewardPct: number;
+  genuinenessScore: number;
+}): BasePoolResult {
+  const { amount, baseRewardPct, genuinenessScore } = input;
+  const scoredPool = roundRewardAmount(amount * baseRewardPct * genuinenessScore);
+
+  if (scoredPool > 0) {
+    return { basePool: scoredPool, scoredPool, usedZeroScoreFloor: false };
+  }
+
+  const floorPool = roundRewardAmount(amount * ZERO_SCORE_FLOOR_REWARD_PCT);
+  return {
+    basePool: floorPool,
+    scoredPool,
+    usedZeroScoreFloor: floorPool > 0,
+  };
+}
 
 /**
  * Assign roles for people in the influence chain and split base_pool by weights.
@@ -72,6 +117,6 @@ export function computeRewardSplit(input: {
 
   return entries.map((e) => ({
     ...e,
-    amount: Number(((basePool * e.weight) / weightSum).toFixed(2)),
+    amount: roundRewardAmount((basePool * e.weight) / weightSum),
   }));
 }

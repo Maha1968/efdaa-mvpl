@@ -82,6 +82,12 @@ export default async function MyRewardsPage() {
           <p className="mt-1 text-3xl font-semibold text-emerald-900">
             ₹{total.toFixed(2)}
           </p>
+          <Link
+            href="/efdaagifts"
+            className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-emerald-800 sm:w-auto"
+          >
+            Buy using EFDAA points
+          </Link>
         </div>
 
         {enriched.length === 0 ? (

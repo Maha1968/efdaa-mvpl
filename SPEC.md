@@ -129,7 +129,8 @@ and WHEN that person claimed/created it.
 Genuineness rewards purchases that look like real, independent word-of-mouth and penalizes ones
 that look self-dealing. Start at `1.0`, then apply these configurable adjustments:
 
-- If `within_window` is **false** → `genuineness_score = 0` (no reward).
+- If `within_window` is **false** → `genuineness_score = 0` (scored pool is 0; pilot still pays
+  the zero-score floor — see Step B).
 - If `barcode_match` is **false** → × `BARCODE_MISS_MULTIPLIER` (0.5).
 - If `store_match` is **false** → × `STORE_MISS_MULTIPLIER` (0.7).
 - **Proximity-time check (anti-collusion):** for each hop in the chain (originator → next →
@@ -146,12 +147,17 @@ needed — only the coordinates and timestamps already captured.
 
 ### Step B — Reward pool & split
 When a purchase is marked **validated**:
-1. `base_pool = purchase.amount × offer.base_reward_pct × genuineness_score`
-2. Walk the token chain from the buyer's token up to the originator → ordered list of people.
-3. Roles: `buyer`, `last_referrer` (referred the buyer), `originator`, middle = `forwarder`.
-4. Split by weights: `buyer 4, last_referrer 3, originator 2, forwarder 1`.
-5. Each reward = `base_pool × (their weight ÷ sum of weights)`.
-6. One `rewards` row per person. **No validated purchase → no rewards.**
+1. `scored_pool = purchase.amount × offer.base_reward_pct × genuineness_score`
+2. If `scored_pool` is **0**, apply the pilot floor:
+   `base_pool = purchase.amount × ZERO_SCORE_FLOOR_REWARD_PCT` (default **0.1%** = `0.001`).
+   Otherwise `base_pool = scored_pool`.
+3. Walk the token chain from the buyer's token up to the originator → ordered list of people.
+4. Roles: `buyer`, `last_referrer` (referred the buyer), `originator`, middle = `forwarder`.
+5. Split by weights: `buyer 4, last_referrer 3, originator 2, forwarder 1`.
+6. Each reward = `base_pool × (their weight ÷ sum of weights)`.
+7. Round/store/display reward amounts to `REWARD_DISPLAY_DECIMALS` (default **2**).
+8. One `rewards` row per eligible **customer** (admins never earn points). **No validated
+   purchase → no rewards.**
 
 ### Config file (single place to tune everything)
 - `TOKEN_VALIDITY_HOURS` = 24
@@ -162,6 +168,8 @@ When a purchase is marked **validated**:
 - `PROXIMITY_PENALTY_MULTIPLIER` = 0.4
 - reward weights: `buyer 4, last_referrer 3, originator 2, forwarder 1`
 - `base_reward_pct` (also stored per offer)
+- `ZERO_SCORE_FLOOR_REWARD_PCT` = 0.001 (0.1% of purchase when score/pool is 0) — change after launch
+- `REWARD_DISPLAY_DECIMALS` = 2 — change after launch if needed
 
 ---
 
@@ -338,6 +346,33 @@ Role is assigned once on first login (ADMIN_EMAIL → admin; all others → cust
 in the database (immutable after set). Use a separate login for admin vs customer testing.
 ```
 
+### Stage 7C — Zero-score reward floor & 2-decimal points
+```
+Pilot rule: even when genuineness_score is 0 (so the normal scored pool is ₹0), still pay a
+minimum reward pool of ZERO_SCORE_FLOOR_REWARD_PCT of the purchase amount (default 0.1% =
+0.001). Example: ₹2499 purchase with score 0 → base_pool ≈ ₹2.50, then split by role weights
+among eligible customers (admins still earn nothing).
+
+Show and store reward/points amounts with REWARD_DISPLAY_DECIMALS (default 2). After the
+product is live, change percentages and decimal places only in config/rewards.ts (and this
+SPEC) — no logic rewrite required.
+
+Update Section 4 Step B to match. Keep genuineness_score itself unchanged (still 0 when
+out of window); only the payout floor changes.
+```
+
+### Stage 7D — EFDAAgifts entry from points page
+```
+On the customer EFDAA Points page (/rewards), add a clear link/button labelled
+"Buy using EFDAA points". When clicked (while signed in as a customer), open /efdaagifts
+— a page branded EFDAAgifts where users will later spend points on catalog items (each with
+an EFDAA points price).
+
+For this stage only: show the button and a placeholder EFDAAgifts page with a banner titled
+"EFDAAgifts". Do not build the gift catalog, cart, or redemption yet — that comes later and
+will plug into this same button/route. Admins must not access EFDAAgifts.
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -360,6 +395,10 @@ in the database (immutable after set). Use a separate login for admin vs custome
       impact without PII.
 - [ ] Stage 7B: Admin cannot open /create, /dashboard, /rewards, claim, or redeem. Customer cannot
       open /admin. Role cannot be flipped after first assignment. Admin earns no reward points.
+- [ ] Stage 7C: A validated purchase with genuineness_score 0 still pays ~0.1% of amount split to
+      customers; points display to 2 decimal places. Tunables live in config/rewards.ts.
+- [ ] Stage 7D: Points page shows "Buy using EFDAA points"; link opens /efdaagifts with EFDAAgifts
+      banner (catalog later). Admins cannot open it.
 
 ---
 

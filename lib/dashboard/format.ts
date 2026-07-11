@@ -12,7 +12,10 @@ export function explainGenuineness(purchase: Purchase): string[] {
   const reasons: string[] = [];
 
   if (purchase.within_window === false) {
-    return ["Outside validity window → score set to 0"];
+    return [
+      "Outside validity window → score set to 0",
+      "Pilot floor: ZERO_SCORE_FLOOR_REWARD_PCT of purchase still paid when scored pool is 0",
+    ];
   }
 
   reasons.push("Started at 1.0 (within window)");

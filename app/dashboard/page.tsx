@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardNav, CUSTOMER_NAV } from "@/components/dashboard-nav";
 import { buildCustomerProductStats } from "@/lib/dashboard/analytics";
+import { formatRewardAmount } from "@/lib/purchases/rewards";
 import { isAdminUser } from "@/lib/auth/admin";
 import { redirect } from "next/navigation";
 import type { Purchase, Reward, Token } from "@/types/database";
@@ -104,13 +105,13 @@ export default async function CustomerDashboardPage() {
                   <div className="rounded-xl bg-zinc-50 px-2 py-3">
                     <p className="text-zinc-500">Points</p>
                     <p className="mt-1 text-lg font-semibold text-zinc-900">
-                      {row.totalRewardPoints}
+                      {formatRewardAmount(row.totalRewardPoints)}
                     </p>
                   </div>
                   <div className="rounded-xl bg-emerald-50 px-2 py-3">
                     <p className="text-emerald-700">Reward value</p>
                     <p className="mt-1 text-lg font-semibold text-emerald-800">
-                      ₹{row.totalRewardValue.toFixed(2)}
+                      ₹{formatRewardAmount(row.totalRewardValue)}
                     </p>
                   </div>
                 </div>
@@ -134,9 +135,11 @@ export default async function CustomerDashboardPage() {
                           <tr key={d.depth} className="border-b border-zinc-100">
                             <td className="py-2">Depth {d.depth}</td>
                             <td className="py-2">{d.purchases}</td>
-                            <td className="py-2">{d.rewardPoints}</td>
                             <td className="py-2">
-                              ₹{d.rewardValue.toFixed(2)}
+                              {formatRewardAmount(d.rewardPoints)}
+                            </td>
+                            <td className="py-2">
+                              ₹{formatRewardAmount(d.rewardValue)}
                             </td>
                           </tr>
                         ))}

@@ -5,6 +5,7 @@ const CUSTOMER_ONLY_PREFIXES = [
   "/create",
   "/dashboard",
   "/rewards",
+  "/efdaagifts",
   "/redeem",
   "/t/",
 ];

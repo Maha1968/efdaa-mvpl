@@ -1,4 +1,5 @@
 import type { Purchase, Reward, Token } from "@/types/database";
+import { roundRewardAmount } from "@/lib/purchases/rewards";
 
 export type DepthStats = {
   depth: number;
@@ -107,13 +108,12 @@ export function buildCustomerProductStats(input: {
       const row = byDepth.find((d) => d.depth === bucket)!;
       const amount = Number(reward.amount);
       row.rewardValue += amount;
-      row.rewardPoints += Math.round(amount); // points ≈ rupees for pilot
+      row.rewardPoints = roundRewardAmount(row.rewardPoints + amount);
     }
 
     const totalPurchases = treePurchases.length;
-    const totalRewardValue = myRewards.reduce(
-      (s, r) => s + Number(r.amount),
-      0,
+    const totalRewardValue = roundRewardAmount(
+      myRewards.reduce((s, r) => s + Number(r.amount), 0),
     );
 
     let status: "Active" | "Expired" | "Completed" = "Active";
@@ -129,7 +129,7 @@ export function buildCustomerProductStats(input: {
       expiresAt: root.expires_at,
       status,
       totalPurchases,
-      totalRewardPoints: Math.round(totalRewardValue),
+      totalRewardPoints: totalRewardValue,
       totalRewardValue,
       byDepth,
     };

@@ -10,7 +10,12 @@ import {
   PROXIMITY_PENALTY_MULTIPLIER,
   ROLE_WEIGHTS,
   STORE_MISS_MULTIPLIER,
+  ZERO_SCORE_FLOOR_REWARD_PCT,
 } from "@/config/rewards";
+import {
+  computeBasePool,
+  formatRewardAmount,
+} from "@/lib/purchases/rewards";
 import { notFound } from "next/navigation";
 import type { Token } from "@/types/database";
 
@@ -83,7 +88,12 @@ export default async function PurchaseResultPage({ params }: PageProps) {
   const amount = Number(purchase.amount);
   const basePct = Number(offer?.base_reward_pct ?? 0);
   const score = Number(purchase.genuineness_score ?? 0);
-  const basePool = Number((amount * basePct * score).toFixed(2));
+  const pool = computeBasePool({
+    amount,
+    baseRewardPct: basePct,
+    genuinenessScore: score,
+  });
+  const basePool = pool.basePool;
 
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
@@ -183,9 +193,20 @@ export default async function PurchaseResultPage({ params }: PageProps) {
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">Reward pool & payouts</h2>
           <p className="mt-2 text-sm text-zinc-600">
-            base_pool = ₹{amount} × {(basePct * 100).toFixed(0)}% × {score.toFixed(3)} ={" "}
-            <strong>₹{basePool.toFixed(2)}</strong>
+            scored = ₹{amount} × {(basePct * 100).toFixed(2)}% × {score.toFixed(3)} ={" "}
+            ₹{formatRewardAmount(pool.scoredPool)}
           </p>
+          {pool.usedZeroScoreFloor ? (
+            <p className="mt-1 text-sm text-amber-800">
+              Zero-score floor applied: ₹{amount} ×{" "}
+              {(ZERO_SCORE_FLOOR_REWARD_PCT * 100).toFixed(2)}% ={" "}
+              <strong>₹{formatRewardAmount(basePool)}</strong>
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-zinc-600">
+              base_pool = <strong>₹{formatRewardAmount(basePool)}</strong>
+            </p>
+          )}
           <p className="mt-1 text-xs text-zinc-500">
             Weights: buyer {ROLE_WEIGHTS.buyer}, last_referrer {ROLE_WEIGHTS.last_referrer},
             originator {ROLE_WEIGHTS.originator}, forwarder {ROLE_WEIGHTS.forwarder}
@@ -193,7 +214,7 @@ export default async function PurchaseResultPage({ params }: PageProps) {
 
           {rewardsWithNames.length === 0 ? (
             <p className="mt-4 text-sm text-zinc-500">
-              No rewards written (score or pool may be zero).
+              No rewards written (no eligible customer recipients, or pool is zero).
             </p>
           ) : (
             <ul className="mt-4 space-y-2">
@@ -207,7 +228,7 @@ export default async function PurchaseResultPage({ params }: PageProps) {
                     <p className="text-zinc-500">{reward.role}</p>
                   </div>
                   <p className="font-semibold text-emerald-700">
-                    ₹{Number(reward.amount).toFixed(2)}
+                    ₹{formatRewardAmount(Number(reward.amount))}
                   </p>
                 </li>
               ))}
