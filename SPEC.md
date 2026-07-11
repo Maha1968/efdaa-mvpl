@@ -101,8 +101,9 @@ and WHEN that person claimed/created it.
 - Signal flags (computed at validation):
   - `barcode_match`, `store_match`, `within_window`
   - `time_to_purchase_hours`
-  - `min_hop_distance_m` — smallest distance between any two consecutive people in the chain
-  - `min_hop_time_minutes` — smallest time gap between any two consecutive people in the chain
+  - `min_hop_distance_m` — distance (m) between **originator claim** and **buyer token claim**
+    (the proximity scoring gap; not consecutive mid-chain hops)
+  - `min_hop_time_minutes` — time gap (minutes) for that same originator ↔ buyer-claim pair
 - `genuineness_score` — 0.0–1.0, from Section 4
 - `created_at`
 
@@ -206,7 +207,8 @@ logic) and follow it exactly. Key points:
 - Purchases upload a receipt and record store, location, and the receipt barcode.
 - Rewards are only created for a 'validated' purchase, and the pool is scaled by a deterministic
   genuineness_score: barcode match, store match, within window, and a proximity-time
-  anti-collusion penalty (too near AND too fast between people in the chain lowers the score).
+  anti-collusion penalty (too near AND too fast between **originator claim** and **buyer token
+  claim** only — intermediate shares do not change the score).
 
 Set up the project structure now. Do not build features yet — scaffold, install dependencies,
 confirm it runs, then wait.
@@ -275,7 +277,8 @@ photo of the receipt (Supabase Storage). Create a purchases row with status 'pen
 time_to_purchase_hours (from the originator's token creation to now). Then build a simple admin
 page (only visible to me) listing pending purchases with the receipt image and captured details,
 with Validate / Reject buttons. On Validate, compute the signal flags (barcode_match, store_match,
-within_window) and the min hop distance/time across the chain before running rewards.
+within_window) and the originator↔buyer-claim distance/time (stored as min_hop_*) before running
+rewards.
 ```
 
 ### Stage 6 — Genuineness, attribution & reward split
@@ -396,9 +399,12 @@ HARD RULES FOR THE SEED
 
 SEED SHAPE (Vercel-safe compact fanouts)
 - Branching depth-4 trees: parent → child → grandchild → great-grandchild.
-- Roots: DEMOT1A (tea), DEMOT2A (coffee), DEMOT3A (spice). Also DEMOPRX0 (proximity contrast)
-  and DEMOEXP0 (expired branch) for genuineness contrast.
-- Genuine hops use multi-kilometre Bengaluru spacing; keep one proximity pair for contrast.
+- Roots: DEMOT1A (tea), DEMOT2A (coffee), DEMOT3A (spice). Plus DEMOGEN0 (short genuine chain
+  for /demo), DEMOPRX0 (proximity contrast), DEMOEXP0 (expired / floor contrast).
+- Partner store: EFDAA Partner Store, Koramangala — originators claim there; purchases redeem
+  there (store_match = purchase GPS within 500m of that store).
+- Intermediate claims may be elsewhere (km hops). Proximity demo: buyer claims near originator
+  and too soon. Genuine demo: buyer claims far / with enough time, then buys at the store.
 - Sample depth-4 leaves redeem via the real validation path so Network / Purchases / Rewards
   show engine-computed numbers.
 - Seed logs referral_events (opened on depth≥1 tokens, claimed, redeemed). Opens on Overview
@@ -457,10 +463,17 @@ purchases, rewards), framing line for the three-way contrast.
 
 MAIN: three columns on wide screens (stack on mobile) —
   Chain A Genuine (DEMOGEN0), Chain B Suspicious proximity (DEMOPRX0), Chain C Out of window
-  (DEMOEXP0). Each shows: role-labelled nodes + User IDs + place/time; hop distance & time between
-  nodes; purchase (product, barcode, store, amount, receipt); large colour-coded genuineness score;
-  plain-English pass/fail checks; reward pool and role split. Explicit copy that expired chains
-  keep a full attribution record and still pay the floor.
+  (DEMOEXP0). Each shows:
+  - Claim chain: role-labelled nodes + User IDs + claim place/time (last node = **Buyer claim** —
+    where/when they opened the coupon).
+  - Consecutive hop distances/times between claims (display only).
+  - Highlighted **Scores genuineness** hop: originator claim ↔ buyer claim (what drives the
+    proximity penalty; thresholds from config).
+  - **The purchase (from invoice):** product, barcode, receipt thumbnail, **store name + address**
+    from the selected partner store on the receipt, purchase GPS/time, amount; plus claim→purchase
+    hop for context.
+  - Large colour-coded genuineness score; plain-English pass/fail checks; reward pool and role
+    split. Explicit copy that expired chains keep a full attribution record and still pay the floor.
 
 CLOSING: every rupee traces to one validated transaction; every purchase traces to who caused it.
 
@@ -483,9 +496,9 @@ hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
 - [ ] Stage 4: Claiming captures my location + time; forwarding creates a new token; depth
       increases; the 5-person cap blocks; an EXPIRED link shows as expired and does nothing.
 - [ ] Stage 5: A receipt uploads with store, GPS location, and receipt barcode; I can validate/reject.
-- [ ] Stage 6: Genuineness scores correctly — a right-product/right-store/in-window purchase with a
-      real distance or time gap = high; a wrong barcode, wrong store, out-of-window, OR
-      same-place-and-same-minute chain = lower/zero. Rewards split correctly.
+- [ ] Stage 6: Genuineness scores correctly — proximity uses originator claim ↔ buyer token claim
+      only (&lt;1000m AND &lt;60 min → penalty); barcode/store/window as SPEC §4; floor when score 0.
+      Intermediate near/fast shares do not change the score. Rewards split correctly.
 - [ ] Stage 7: I can trace any full chain and see the leaderboard.
 - [ ] Stage 7A: Customer dashboard shows only my products + depth aggregates (no others' tokens
       or identities). Admin dashboards use User IDs only (no names/phones/emails). Referral Assist
@@ -497,15 +510,15 @@ hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
       customers; points display to 2 decimal places. Tunables live in config/rewards.ts.
 - [ ] Stage 7D: Points page shows "Buy using EFDAA points"; link opens /efdaagifts with EFDAAgifts
       banner (catalog later). Admins cannot open it.
-- [ ] Stage 7E: Admin Demo Data Load seeds DEMOT1A/2A/3A (+ DEMOPRX0/DEMOEXP0); genuineness +
-      rewards from real engine; reset removes only is_demo rows; Opens > 0 after schema_stage7a +
-      Load; Assist/Network show (P) on purchase tokens; Purchase view shows tree-by-depth totals.
+- [ ] Stage 7E: Admin Demo Data Load seeds DEMOT1A/2A/3A + DEMOGEN0/DEMOPRX0/DEMOEXP0;
+      genuineness + rewards from real engine; reset removes only is_demo rows; Opens > 0 after
+      schema_stage7a + Load; Assist/Network show (P); Purchase view shows tree-by-depth totals;
+      demo_user@efdaa.com / demo_user is DEMOT1A originator.
 - [ ] Stage 7F: /rewards shows lifetime points + Originator/Forwarder/Buyer cards and sections;
       originator expand has level aggregates only (no PII/codes); forwarder/buyer lists privacy-safe;
       Buy using EFDAA points still links to /efdaagifts; admins redirected away.
-- [ ] Stage 7G: Public /demo shows Genuine / Proximity / Expired columns from seeded data only;
-      scores+rewards live from DB; mobile stack works at 375px; claim/create/redeem sticky CTAs;
-      location/upload errors visible. After Load, open /demo without logging in.
+- [ ] Stage 7G: Public /demo shows Genuine / Proximity / Expired; buyer claim separate from
+      invoice purchase (store name+address); scoring hop = originator↔buyer claim; mobile at 375px.
 
 ---
 
