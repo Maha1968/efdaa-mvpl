@@ -86,12 +86,13 @@ export function DemoDataPanel() {
     <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
       <h2 className="font-semibold text-zinc-900">Demo data</h2>
       <p className="mt-2 text-sm text-zinc-600">
-        Load branching referral trees (children multiply under each parent),
-        multiple products, and a couple of scoring contrast cases. Open{" "}
-        <span className="font-medium">Network</span> on root codes like{" "}
-        <span className="font-mono">DEMOT1A</span> to see the full tree. Rows are
-        tagged <span className="font-mono">is_demo</span>. Customers only;
-        rewards from the real genuineness engine.
+        Load large branching trees to depth 4 (parent → child → grandchild →
+        great-grandchild). Roots:{" "}
+        <span className="font-mono">DEMOT1A</span>,{" "}
+        <span className="font-mono">DEMOT2A</span>,{" "}
+        <span className="font-mono">DEMOT3A</span>,{" "}
+        <span className="font-mono">DEMOT4A</span>. Use Network or Referral
+        Assist after Load. Tagged <span className="font-mono">is_demo</span>.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-3">

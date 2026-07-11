@@ -29,6 +29,7 @@ const PLACES = [
   { lat: 12.9063, lng: 77.5857, text: "JP Nagar" },
   { lat: 13.1005, lng: 77.5963, text: "Yelahanka" },
   { lat: 12.9166, lng: 77.6101, text: "BTM Layout" },
+  { lat: 12.9718, lng: 77.6412, text: "Domlur" },
   { lat: 12.97855, lng: 77.64095, text: "EFDAA Partner Store, Indiranagar" },
 ] as const;
 
@@ -43,6 +44,7 @@ const PRODUCTS = [
   { key: "coffee", name: "Demo Coorg Filter Coffee 250g", price: 899, barcode: "890100DEMO0002" },
   { key: "honey", name: "Demo Coorg Wild Honey 500g", price: 1299, barcode: "890100DEMO0003" },
   { key: "spice", name: "Demo Garam Masala Pack 200g", price: 349, barcode: "890100DEMO0004" },
+  { key: "oil", name: "Demo Cold-Pressed Coconut Oil 1L", price: 599, barcode: "890100DEMO0005" },
 ] as const;
 
 export type ChainSeedReport = {
@@ -69,6 +71,14 @@ export type ChainSeedReport = {
   rewards: { role: string; userId: string; publicId: string; amount: number }[];
 };
 
+type TokenRow = {
+  id: string;
+  code: string;
+  holder_user_id: string;
+  depth: number;
+  expires_at: string;
+};
+
 function hoursAgo(h: number) {
   return new Date(Date.now() - h * 3_600_000);
 }
@@ -82,42 +92,50 @@ function hoursAfter(base: Date, hours: number) {
 }
 
 function placeAt(index: number): Place {
-  return PLACES[index % (PLACES.length - 1)]; // avoid always picking store
+  return PLACES[index % (PLACES.length - 1)];
 }
 
-function person(key: string) {
-  return {
-    key,
-    email: `demo.${key.toLowerCase()}@${DEMO_EMAIL_DOMAIN}`,
-    name: `Demo ${key}`,
-  };
-}
+/** Letter labels for depth: 0=A, 1=B, 2=C, 3=D, 4=E */
+const DEPTH_LETTER = ["A", "B", "C", "D", "E"] as const;
 
 async function ensureDemoCustomer(
   admin: SupabaseClient,
   key: string,
+  emailCache: Map<string, string>,
 ): Promise<string> {
-  const p = person(key);
+  const email = `demo.${key.toLowerCase()}@${DEMO_EMAIL_DOMAIN}`;
+  const name = `Demo ${key}`;
   const password = `Demo-${key}-Seed-9x!`;
 
-  const { data: listed } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  const existing = listed?.users?.find(
-    (u) => u.email?.toLowerCase() === p.email.toLowerCase(),
-  );
+  const cached = emailCache.get(email.toLowerCase());
+  if (cached) {
+    await admin.from("users").upsert(
+      { id: cached, name, phone: null, role: "customer", is_demo: true },
+      { onConflict: "id" },
+    );
+    return cached;
+  }
 
-  let userId = existing?.id;
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name },
+  });
 
-  if (!userId) {
-    const { data, error } = await admin.auth.admin.createUser({
-      email: p.email,
-      password,
-      email_confirm: true,
-      user_metadata: { name: p.name },
-    });
-    if (error || !data.user) {
-      throw new Error(`Failed to create ${p.email}: ${error?.message}`);
+  let userId = data?.user?.id;
+  if (error || !userId) {
+    // May already exist — refresh cache from list
+    const { data: listed } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    for (const u of listed?.users ?? []) {
+      if (u.email) emailCache.set(u.email.toLowerCase(), u.id);
     }
-    userId = data.user.id;
+    userId = emailCache.get(email.toLowerCase());
+    if (!userId) {
+      throw new Error(`Failed to create ${email}: ${error?.message}`);
+    }
+  } else {
+    emailCache.set(email.toLowerCase(), userId);
   }
 
   const { data: row } = await admin
@@ -125,32 +143,14 @@ async function ensureDemoCustomer(
     .select("role")
     .eq("id", userId)
     .maybeSingle();
-
   if (row?.role === "admin") {
-    throw new Error(`Refusing to use ${p.email}: already an administrator.`);
+    throw new Error(`Refusing to use ${email}: already an administrator.`);
   }
 
-  const { error: upsertError } = await admin.from("users").upsert(
-    {
-      id: userId,
-      name: p.name,
-      phone: null,
-      role: "customer",
-      is_demo: true,
-    },
+  await admin.from("users").upsert(
+    { id: userId, name, phone: null, role: "customer", is_demo: true },
     { onConflict: "id" },
   );
-
-  if (upsertError) {
-    const { error: patchError } = await admin
-      .from("users")
-      .update({ name: p.name, is_demo: true, role: "customer" })
-      .eq("id", userId)
-      .neq("role", "admin");
-    if (patchError) {
-      throw new Error(`Failed to tag demo user ${p.email}: ${patchError.message}`);
-    }
-  }
 
   return userId;
 }
@@ -170,14 +170,6 @@ async function insertEvent(
     is_demo: true,
   });
 }
-
-type TokenRow = {
-  id: string;
-  code: string;
-  holder_user_id: string;
-  depth: number;
-  expires_at: string;
-};
 
 async function createTokenNode(input: {
   admin: SupabaseClient;
@@ -324,8 +316,155 @@ async function validateLeafPurchase(input: {
 }
 
 /**
- * Wipe only is_demo rows. Never deletes non-demo data or admin accounts.
+ * Grow a branching tree to depth 4:
+ * parent → children → grandchildren → great-grandchildren → great-great-grandchildren
+ *
+ * `fanout[d]` = how many children each node at depth d creates (d = 0..3).
+ * Example fanout [3,3,2,2] → 1 + 3 + 9 + 18 + 36 = 67 tokens.
  */
+async function growDepth4Tree(input: {
+  admin: SupabaseClient;
+  emailCache: Map<string, string>;
+  treeTag: string; // e.g. "T1"
+  personPrefix: string; // e.g. "t1"
+  product: { id: string; barcode: string; price: number };
+  offerId: string;
+  storeId: string;
+  t0: Date;
+  fanout: [number, number, number, number];
+  /** Redeem every Nth depth-4 leaf (1 = all, 3 = every third) */
+  redeemEveryNthLeaf: number;
+  placeCounter: { n: number };
+}): Promise<{ root: TokenRow; codes: string[]; reports: ChainSeedReport[] }> {
+  const {
+    admin,
+    emailCache,
+    treeTag,
+    personPrefix,
+    product,
+    offerId,
+    storeId,
+    t0,
+    fanout,
+    redeemEveryNthLeaf,
+    placeCounter,
+  } = input;
+
+  const need = async (key: string) =>
+    ensureDemoCustomer(admin, key, emailCache);
+
+  const nextPlace = () => placeAt(placeCounter.n++);
+  const expiresAt = hoursAfter(t0, TOKEN_VALIDITY_HOURS);
+  const codes: string[] = [];
+  const reports: ChainSeedReport[] = [];
+  const leaves: TokenRow[] = [];
+
+  const rootCode = `DEMO${treeTag}A`;
+  const root = await createTokenNode({
+    admin,
+    code: rootCode,
+    holderUserId: await need(`${personPrefix}a`),
+    parent: null,
+    rootId: null,
+    depth: 0,
+    productId: product.id,
+    offerId,
+    barcode: product.barcode,
+    place: nextPlace(),
+    at: t0,
+    expiresAt,
+    shared: true,
+  });
+  codes.push(root.code);
+
+  type NodeCtx = {
+    token: TokenRow;
+    codePath: string; // e.g. T1B2C1
+    personPath: string; // e.g. t1b2c1
+    lineageCodes: string[];
+  };
+
+  let frontier: NodeCtx[] = [
+    {
+      token: root,
+      codePath: treeTag,
+      personPath: personPrefix,
+      lineageCodes: [root.code],
+    },
+  ];
+
+  for (let depth = 0; depth < 4; depth++) {
+    const childCount = fanout[depth];
+    const nextFrontier: NodeCtx[] = [];
+    let sibling = 0;
+
+    for (const parent of frontier) {
+      for (let i = 1; i <= childCount; i++) {
+        sibling += 1;
+        const letter = DEPTH_LETTER[depth + 1];
+        const code = `DEMO${parent.codePath}${letter}${i}`;
+        const personKey = `${parent.personPath}${letter.toLowerCase()}${i}`;
+        const hoursOffset = 1.5 + depth * 3.5 + sibling * 0.15;
+
+        const child = await createTokenNode({
+          admin,
+          code,
+          holderUserId: await need(personKey),
+          parent: parent.token,
+          rootId: root.id,
+          depth: depth + 1,
+          productId: product.id,
+          offerId,
+          barcode: product.barcode,
+          place: nextPlace(),
+          at: hoursAfter(t0, hoursOffset),
+          expiresAt,
+          shared: depth + 1 < 4,
+        });
+        codes.push(child.code);
+
+        const ctx: NodeCtx = {
+          token: child,
+          codePath: `${parent.codePath}${letter}${i}`,
+          personPath: personKey,
+          lineageCodes: [...parent.lineageCodes, child.code],
+        };
+        nextFrontier.push(ctx);
+        if (depth + 1 === 4) leaves.push(child);
+      }
+    }
+    frontier = nextFrontier;
+  }
+
+  // Redeem a sample of depth-4 leaves so Network shows purchases/rewards
+  let leafIdx = 0;
+  for (const leaf of leaves) {
+    leafIdx += 1;
+    if (leafIdx % redeemEveryNthLeaf !== 0) continue;
+    const purchaseAt = minutesAfter(hoursAfter(t0, 20), leafIdx * 3);
+    // Keep purchase inside window
+    const safeAt =
+      purchaseAt.getTime() < expiresAt.getTime()
+        ? purchaseAt
+        : minutesAfter(expiresAt, -30);
+
+    reports.push(
+      await validateLeafPurchase({
+        admin,
+        label: `${treeTag} depth-4 leaf ${leaf.code}`,
+        leaf,
+        storeId,
+        barcode: product.barcode,
+        amount: product.price,
+        at: safeAt,
+        codes: [root.code, leaf.code],
+      }),
+    );
+  }
+
+  return { root, codes, reports };
+}
+
 export async function resetDemoData(admin: SupabaseClient) {
   await admin.from("rewards").delete().eq("is_demo", true);
   await admin.from("purchases").delete().eq("is_demo", true);
@@ -361,18 +500,14 @@ export async function resetDemoData(admin: SupabaseClient) {
 }
 
 /**
- * Branching demo trees — children multiply under each parent.
+ * Large branching demo trees — every main tree reaches depth 4:
+ * parent → child → grandchild → great-grandchild → (depth 4).
  *
- * Tree 1 (tea) root DEMOT1A:
- *   A → B1, B2, B3
- *   B1 → B1C1, B1C2
- *   B2 → B2C1, B2C2, B2C3
- *        B2C2 → B2C2D1, B2C2D2
- *   B3 → B3C1, B3C2
- *
- * Tree 2 (coffee) root DEMOT2A — similar fan-out
- * Tree 3 (spice)  root DEMOT3A — smaller branch + depth
- * Plus one proximity pair and one expired branch for scoring contrast.
+ * Roots to open in Network / Assist:
+ * - DEMOT1A (tea)   fanout 3×3×2×2
+ * - DEMOT2A (coffee) fanout 3×2×2×2
+ * - DEMOT3A (spice)  fanout 2×2×2×2
+ * - DEMOT4A (oil)    fanout 2×3×2×2
  */
 export async function loadDemoData(admin: SupabaseClient): Promise<{
   reports: ChainSeedReport[];
@@ -380,11 +515,11 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
 }> {
   await resetDemoData(admin);
 
-  const ids = new Map<string, string>();
-  const need = async (key: string) => {
-    if (!ids.has(key)) ids.set(key, await ensureDemoCustomer(admin, key));
-    return ids.get(key)!;
-  };
+  const emailCache = new Map<string, string>();
+  const { data: listed } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  for (const u of listed?.users ?? []) {
+    if (u.email) emailCache.set(u.email.toLowerCase(), u.id);
+  }
 
   const productByKey: Record<string, { id: string; barcode: string; price: number }> =
     {};
@@ -433,488 +568,69 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
 
   const reports: ChainSeedReport[] = [];
   const assistCodes: string[] = [];
-  let placeIdx = 0;
-  const nextPlace = () => placeAt(placeIdx++);
+  const placeCounter = { n: 0 };
 
-  // ========== TREE 1 — Green Tea (wide branching) ==========
-  {
-    const product = productByKey.tea;
-    const t0 = hoursAgo(20);
-    const expiresAt = hoursAfter(t0, TOKEN_VALIDITY_HOURS);
+  const trees: {
+    treeTag: string;
+    personPrefix: string;
+    productKey: keyof typeof productByKey;
+    hoursAgoStart: number;
+    fanout: [number, number, number, number];
+    redeemEveryNthLeaf: number;
+  }[] = [
+    {
+      treeTag: "T1",
+      personPrefix: "t1",
+      productKey: "tea",
+      hoursAgoStart: 21,
+      fanout: [3, 3, 2, 2],
+      redeemEveryNthLeaf: 4,
+    },
+    {
+      treeTag: "T2",
+      personPrefix: "t2",
+      productKey: "coffee",
+      hoursAgoStart: 19,
+      fanout: [3, 2, 2, 2],
+      redeemEveryNthLeaf: 5,
+    },
+    {
+      treeTag: "T3",
+      personPrefix: "t3",
+      productKey: "spice",
+      hoursAgoStart: 17,
+      fanout: [2, 2, 2, 2],
+      redeemEveryNthLeaf: 4,
+    },
+    {
+      treeTag: "T4",
+      personPrefix: "t4",
+      productKey: "oil",
+      hoursAgoStart: 16,
+      fanout: [2, 3, 2, 2],
+      redeemEveryNthLeaf: 5,
+    },
+  ];
 
-    const A = await createTokenNode({
+  for (const tree of trees) {
+    const grown = await growDepth4Tree({
       admin,
-      code: "DEMOT1A",
-      holderUserId: await need("t1a"),
-      parent: null,
-      rootId: null,
-      depth: 0,
-      productId: product.id,
+      emailCache,
+      treeTag: tree.treeTag,
+      personPrefix: tree.personPrefix,
+      product: productByKey[tree.productKey],
       offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: t0,
-      expiresAt,
-      shared: true,
+      storeId: store.id,
+      t0: hoursAgo(tree.hoursAgoStart),
+      fanout: tree.fanout,
+      redeemEveryNthLeaf: tree.redeemEveryNthLeaf,
+      placeCounter,
     });
-    assistCodes.push(A.code);
-
-    // A → B1, B2, B3
-    const B1 = await createTokenNode({
-      admin,
-      code: "DEMOT1B1",
-      holderUserId: await need("t1b1"),
-      parent: A,
-      rootId: A.id,
-      depth: 1,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 2),
-      expiresAt,
-      shared: true,
-    });
-    const B2 = await createTokenNode({
-      admin,
-      code: "DEMOT1B2",
-      holderUserId: await need("t1b2"),
-      parent: A,
-      rootId: A.id,
-      depth: 1,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 3),
-      expiresAt,
-      shared: true,
-    });
-    const B3 = await createTokenNode({
-      admin,
-      code: "DEMOT1B3",
-      holderUserId: await need("t1b3"),
-      parent: A,
-      rootId: A.id,
-      depth: 1,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 4),
-      expiresAt,
-      shared: true,
-    });
-    assistCodes.push(B1.code, B2.code, B3.code);
-
-    // B1 → B1C1, B1C2
-    const B1C1 = await createTokenNode({
-      admin,
-      code: "DEMOT1B1C1",
-      holderUserId: await need("t1b1c1"),
-      parent: B1,
-      rootId: A.id,
-      depth: 2,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 8),
-      expiresAt,
-    });
-    const B1C2 = await createTokenNode({
-      admin,
-      code: "DEMOT1B1C2",
-      holderUserId: await need("t1b1c2"),
-      parent: B1,
-      rootId: A.id,
-      depth: 2,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 9),
-      expiresAt,
-      shared: true,
-    });
-    assistCodes.push(B1C1.code, B1C2.code);
-
-    // B2 → B2C1, B2C2, B2C3
-    const B2C1 = await createTokenNode({
-      admin,
-      code: "DEMOT1B2C1",
-      holderUserId: await need("t1b2c1"),
-      parent: B2,
-      rootId: A.id,
-      depth: 2,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 7),
-      expiresAt,
-    });
-    const B2C2 = await createTokenNode({
-      admin,
-      code: "DEMOT1B2C2",
-      holderUserId: await need("t1b2c2"),
-      parent: B2,
-      rootId: A.id,
-      depth: 2,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 10),
-      expiresAt,
-      shared: true,
-    });
-    const B2C3 = await createTokenNode({
-      admin,
-      code: "DEMOT1B2C3",
-      holderUserId: await need("t1b2c3"),
-      parent: B2,
-      rootId: A.id,
-      depth: 2,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 11),
-      expiresAt,
-    });
-    assistCodes.push(B2C1.code, B2C2.code, B2C3.code);
-
-    // B2C2 → B2C2D1, B2C2D2 (depth 3)
-    const B2C2D1 = await createTokenNode({
-      admin,
-      code: "DEMOT1B2C2D1",
-      holderUserId: await need("t1b2c2d1"),
-      parent: B2C2,
-      rootId: A.id,
-      depth: 3,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 15),
-      expiresAt,
-    });
-    const B2C2D2 = await createTokenNode({
-      admin,
-      code: "DEMOT1B2C2D2",
-      holderUserId: await need("t1b2c2d2"),
-      parent: B2C2,
-      rootId: A.id,
-      depth: 3,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 16),
-      expiresAt,
-      shared: true,
-    });
-    assistCodes.push(B2C2D1.code, B2C2D2.code);
-
-    // B2C2D2 → one depth-4 leaf
-    const B2C2D2E1 = await createTokenNode({
-      admin,
-      code: "DEMOT1B2C2D2E1",
-      holderUserId: await need("t1b2c2d2e1"),
-      parent: B2C2D2,
-      rootId: A.id,
-      depth: 4,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 18),
-      expiresAt,
-    });
-    assistCodes.push(B2C2D2E1.code);
-
-    // B3 → B3C1, B3C2
-    const B3C1 = await createTokenNode({
-      admin,
-      code: "DEMOT1B3C1",
-      holderUserId: await need("t1b3c1"),
-      parent: B3,
-      rootId: A.id,
-      depth: 2,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 12),
-      expiresAt,
-    });
-    const B3C2 = await createTokenNode({
-      admin,
-      code: "DEMOT1B3C2",
-      holderUserId: await need("t1b3c2"),
-      parent: B3,
-      rootId: A.id,
-      depth: 2,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 13),
-      expiresAt,
-    });
-    assistCodes.push(B3C1.code, B3C2.code);
-
-    // Redeem a few leaves so rewards/analytics light up
-    reports.push(
-      await validateLeafPurchase({
-        admin,
-        label: "Tree1 leaf B1C1 (tea)",
-        leaf: B1C1,
-        storeId: store.id,
-        barcode: product.barcode,
-        amount: product.price,
-        at: minutesAfter(hoursAfter(t0, 8), 50),
-        codes: [A.code, B1.code, B1C1.code],
-      }),
-    );
-    reports.push(
-      await validateLeafPurchase({
-        admin,
-        label: "Tree1 leaf B2C2D2E1 depth4 (tea)",
-        leaf: B2C2D2E1,
-        storeId: store.id,
-        barcode: product.barcode,
-        amount: product.price,
-        at: minutesAfter(hoursAfter(t0, 18), 40),
-        codes: [A.code, B2.code, B2C2.code, B2C2D2.code, B2C2D2E1.code],
-      }),
-    );
-    reports.push(
-      await validateLeafPurchase({
-        admin,
-        label: "Tree1 leaf B3C2 (tea)",
-        leaf: B3C2,
-        storeId: store.id,
-        barcode: product.barcode,
-        amount: product.price,
-        at: minutesAfter(hoursAfter(t0, 13), 35),
-        codes: [A.code, B3.code, B3C2.code],
-      }),
-    );
+    assistCodes.push(...grown.codes);
+    reports.push(...grown.reports);
   }
 
-  // ========== TREE 2 — Coffee (branching) ==========
-  {
-    const product = productByKey.coffee;
-    const t0 = hoursAgo(18);
-    const expiresAt = hoursAfter(t0, TOKEN_VALIDITY_HOURS);
-
-    const A = await createTokenNode({
-      admin,
-      code: "DEMOT2A",
-      holderUserId: await need("t2a"),
-      parent: null,
-      rootId: null,
-      depth: 0,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: t0,
-      expiresAt,
-      shared: true,
-    });
-    assistCodes.push(A.code);
-
-    const Bs = [];
-    for (let i = 1; i <= 3; i++) {
-      const B = await createTokenNode({
-        admin,
-        code: `DEMOT2B${i}`,
-        holderUserId: await need(`t2b${i}`),
-        parent: A,
-        rootId: A.id,
-        depth: 1,
-        productId: product.id,
-        offerId: offer.id,
-        barcode: product.barcode,
-        place: nextPlace(),
-        at: hoursAfter(t0, i + 1),
-        expiresAt,
-        shared: true,
-      });
-      Bs.push(B);
-      assistCodes.push(B.code);
-    }
-
-    // B1 → 2 children; B2 → 3; B3 → 2
-    const childCounts = [2, 3, 2];
-    let redeemLeaf: TokenRow | null = null;
-    for (let bi = 0; bi < Bs.length; bi++) {
-      for (let ci = 1; ci <= childCounts[bi]; ci++) {
-        const C = await createTokenNode({
-          admin,
-          code: `DEMOT2B${bi + 1}C${ci}`,
-          holderUserId: await need(`t2b${bi + 1}c${ci}`),
-          parent: Bs[bi],
-          rootId: A.id,
-          depth: 2,
-          productId: product.id,
-          offerId: offer.id,
-          barcode: product.barcode,
-          place: nextPlace(),
-          at: hoursAfter(t0, 6 + bi * 2 + ci),
-          expiresAt,
-          shared: bi === 1 && ci === 2,
-        });
-        assistCodes.push(C.code);
-        if (bi === 1 && ci === 2) {
-          // B2C2 → two D children
-          for (let di = 1; di <= 2; di++) {
-            const D = await createTokenNode({
-              admin,
-              code: `DEMOT2B2C2D${di}`,
-              holderUserId: await need(`t2b2c2d${di}`),
-              parent: C,
-              rootId: A.id,
-              depth: 3,
-              productId: product.id,
-              offerId: offer.id,
-              barcode: product.barcode,
-              place: nextPlace(),
-              at: hoursAfter(t0, 14 + di),
-              expiresAt,
-            });
-            assistCodes.push(D.code);
-            if (di === 1) redeemLeaf = D;
-          }
-        }
-        if (bi === 0 && ci === 1) redeemLeaf = redeemLeaf ?? C;
-      }
-    }
-
-    if (redeemLeaf) {
-      reports.push(
-        await validateLeafPurchase({
-          admin,
-          label: "Tree2 leaf (coffee)",
-          leaf: redeemLeaf,
-          storeId: store.id,
-          barcode: product.barcode,
-          amount: product.price,
-          at: minutesAfter(new Date(redeemLeaf.expires_at), -120),
-          codes: [A.code, redeemLeaf.code],
-        }),
-      );
-    }
-  }
-
-  // ========== TREE 3 — Spice (medium branch) ==========
-  {
-    const product = productByKey.spice;
-    const t0 = hoursAgo(16);
-    const expiresAt = hoursAfter(t0, TOKEN_VALIDITY_HOURS);
-
-    const A = await createTokenNode({
-      admin,
-      code: "DEMOT3A",
-      holderUserId: await need("t3a"),
-      parent: null,
-      rootId: null,
-      depth: 0,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: t0,
-      expiresAt,
-      shared: true,
-    });
-    assistCodes.push(A.code);
-
-    const B1 = await createTokenNode({
-      admin,
-      code: "DEMOT3B1",
-      holderUserId: await need("t3b1"),
-      parent: A,
-      rootId: A.id,
-      depth: 1,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 2),
-      expiresAt,
-      shared: true,
-    });
-    const B2 = await createTokenNode({
-      admin,
-      code: "DEMOT3B2",
-      holderUserId: await need("t3b2"),
-      parent: A,
-      rootId: A.id,
-      depth: 1,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 3),
-      expiresAt,
-      shared: true,
-    });
-    assistCodes.push(B1.code, B2.code);
-
-    for (let i = 1; i <= 3; i++) {
-      const C = await createTokenNode({
-        admin,
-        code: `DEMOT3B2C${i}`,
-        holderUserId: await need(`t3b2c${i}`),
-        parent: B2,
-        rootId: A.id,
-        depth: 2,
-        productId: product.id,
-        offerId: offer.id,
-        barcode: product.barcode,
-        place: nextPlace(),
-        at: hoursAfter(t0, 6 + i),
-        expiresAt,
-      });
-      assistCodes.push(C.code);
-      if (i === 3) {
-        reports.push(
-          await validateLeafPurchase({
-            admin,
-            label: "Tree3 leaf B2C3 (spice)",
-            leaf: C,
-            storeId: store.id,
-            barcode: product.barcode,
-            amount: product.price,
-            at: minutesAfter(hoursAfter(t0, 9), 30),
-            codes: [A.code, B2.code, C.code],
-          }),
-        );
-      }
-    }
-
-    const B1C1 = await createTokenNode({
-      admin,
-      code: "DEMOT3B1C1",
-      holderUserId: await need("t3b1c1"),
-      parent: B1,
-      rootId: A.id,
-      depth: 2,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 5),
-      expiresAt,
-    });
-    assistCodes.push(B1C1.code);
-  }
-
-  // ========== Proximity contrast (honey) — short branch ==========
+  // Proximity contrast (short)
   {
     const product = productByKey.honey;
     const t0 = hoursAgo(2);
@@ -922,7 +638,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
     const A = await createTokenNode({
       admin,
       code: "DEMOPRX0",
-      holderUserId: await need("prxa"),
+      holderUserId: await ensureDemoCustomer(admin, "prxa", emailCache),
       parent: null,
       rootId: null,
       depth: 0,
@@ -937,7 +653,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
     const B = await createTokenNode({
       admin,
       code: "DEMOPRX1",
-      holderUserId: await need("prxb"),
+      holderUserId: await ensureDemoCustomer(admin, "prxb", emailCache),
       parent: A,
       rootId: A.id,
       depth: 1,
@@ -963,7 +679,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
     );
   }
 
-  // ========== Expired branch (honey) ==========
+  // Expired small branch (floor)
   {
     const product = productByKey.honey;
     const t0 = hoursAgo(72);
@@ -971,72 +687,58 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
     const A = await createTokenNode({
       admin,
       code: "DEMOEXP0",
-      holderUserId: await need("expa"),
+      holderUserId: await ensureDemoCustomer(admin, "expa", emailCache),
       parent: null,
       rootId: null,
       depth: 0,
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      place: nextPlace(),
+      place: placeAt(placeCounter.n++),
       at: t0,
       expiresAt,
       shared: true,
     });
-    const B1 = await createTokenNode({
+    const B = await createTokenNode({
       admin,
       code: "DEMOEXPB1",
-      holderUserId: await need("expb1"),
+      holderUserId: await ensureDemoCustomer(admin, "expb1", emailCache),
       parent: A,
       rootId: A.id,
       depth: 1,
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 3),
+      place: placeAt(placeCounter.n++),
+      at: hoursAfter(t0, 4),
       expiresAt,
       shared: true,
-    });
-    const B2 = await createTokenNode({
-      admin,
-      code: "DEMOEXPB2",
-      holderUserId: await need("expb2"),
-      parent: A,
-      rootId: A.id,
-      depth: 1,
-      productId: product.id,
-      offerId: offer.id,
-      barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 5),
-      expiresAt,
     });
     const C = await createTokenNode({
       admin,
       code: "DEMOEXPB1C1",
-      holderUserId: await need("expb1c1"),
-      parent: B1,
+      holderUserId: await ensureDemoCustomer(admin, "expb1c1", emailCache),
+      parent: B,
       rootId: A.id,
       depth: 2,
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      place: nextPlace(),
-      at: hoursAfter(t0, 12),
+      place: placeAt(placeCounter.n++),
+      at: hoursAfter(t0, 10),
       expiresAt,
     });
-    assistCodes.push(A.code, B1.code, B2.code, C.code);
+    assistCodes.push(A.code, B.code, C.code);
     reports.push(
       await validateLeafPurchase({
         admin,
-        label: "Expired branch leaf (honey floor)",
+        label: "Expired branch (honey floor)",
         leaf: C,
         storeId: store.id,
         barcode: product.barcode,
         amount: product.price,
         at: hoursAfter(t0, 30),
-        codes: [A.code, B1.code, C.code],
+        codes: [A.code, B.code, C.code],
       }),
     );
   }

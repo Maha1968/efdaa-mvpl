@@ -8,6 +8,9 @@ import { formatRewardAmount } from "@/lib/purchases/rewards";
 import { notFound, redirect } from "next/navigation";
 import type { Token } from "@/types/database";
 
+/** Demo Load creates many Auth users — allow long-running seed on Vercel. */
+export const maxDuration = 300;
+
 export default async function AdminOverviewPage() {
   if (!(await isAdminUser())) notFound();
 

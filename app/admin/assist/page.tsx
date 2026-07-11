@@ -12,6 +12,33 @@ type PageProps = {
   searchParams: Promise<{ code?: string }>;
 };
 
+/** Flatten subtree under `root` (excluding root), depth-first, with indent level. */
+function flattenDescendants(
+  rootId: string,
+  allInTree: Token[],
+): { token: Token; indent: number }[] {
+  const byParent = new Map<string, Token[]>();
+  for (const t of allInTree) {
+    if (!t.parent_token_id) continue;
+    const list = byParent.get(t.parent_token_id) ?? [];
+    list.push(t);
+    byParent.set(t.parent_token_id, list);
+  }
+
+  const out: { token: Token; indent: number }[] = [];
+  const walk = (id: string, indent: number) => {
+    const kids = (byParent.get(id) ?? []).sort((a, b) =>
+      a.code.localeCompare(b.code),
+    );
+    for (const kid of kids) {
+      out.push({ token: kid, indent });
+      walk(kid.id, indent + 1);
+    }
+  };
+  walk(rootId, 0);
+  return out;
+}
+
 export default async function AdminAssistPage({ searchParams }: PageProps) {
   if (!(await isAdminUser())) notFound();
 
@@ -26,7 +53,8 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
 
   let token: Token | null = null;
   let ancestors: Token[] = [];
-  let children: Token[] = [];
+  let directChildren: Token[] = [];
+  let descendants: { token: Token; indent: number }[] = [];
   let events: {
     event_type: string;
     created_at: string;
@@ -59,33 +87,47 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
       };
       ancestors = await buildTokenChain(token, fetchParent);
 
-      const [{ data: childRows }, { data: eventRows }, { data: purchaseRow }, { data: product }] =
-        await Promise.all([
-          supabase
-            .from("tokens")
-            .select("*")
-            .eq("parent_token_id", token.id)
-            .order("created_at"),
-          supabase
-            .from("referral_events")
-            .select("event_type, created_at, actor_user_id")
-            .eq("token_id", token.id)
-            .order("created_at"),
-          supabase
-            .from("purchases")
-            .select("status, amount, created_at, buyer_user_id")
-            .eq("token_id", token.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          supabase
-            .from("products")
-            .select("name")
-            .eq("id", token.product_id)
-            .single(),
-        ]);
+      const rootId = token.root_token_id ?? token.id;
 
-      children = (childRows as Token[]) ?? [];
+      const [
+        { data: childRows },
+        { data: treeRows },
+        { data: eventRows },
+        { data: purchaseRow },
+        { data: product },
+      ] = await Promise.all([
+        supabase
+          .from("tokens")
+          .select("*")
+          .eq("parent_token_id", token.id)
+          .order("created_at"),
+        supabase
+          .from("tokens")
+          .select("*")
+          .or(`id.eq.${rootId},root_token_id.eq.${rootId}`)
+          .order("depth")
+          .order("created_at"),
+        supabase
+          .from("referral_events")
+          .select("event_type, created_at, actor_user_id")
+          .eq("token_id", token.id)
+          .order("created_at"),
+        supabase
+          .from("purchases")
+          .select("status, amount, created_at, buyer_user_id")
+          .eq("token_id", token.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("products")
+          .select("name")
+          .eq("id", token.product_id)
+          .single(),
+      ]);
+
+      directChildren = (childRows as Token[]) ?? [];
+      descendants = flattenDescendants(token.id, (treeRows as Token[]) ?? []);
       events = eventRows ?? [];
       purchase = purchaseRow;
       productName = product?.name ?? "Product";
@@ -95,6 +137,11 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
   const expired = token
     ? new Date(token.expires_at).getTime() <= Date.now()
     : false;
+
+  const maxDescDepth =
+    descendants.length > 0
+      ? Math.max(...descendants.map((d) => d.token.depth))
+      : token?.depth ?? 0;
 
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
@@ -175,8 +222,19 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
               <h2 className="font-semibold text-zinc-900">Current status</h2>
               <ul className="mt-3 space-y-1 text-sm text-zinc-700">
-                <li>Opened: {events.some((e) => e.event_type === "opened") ? "Yes" : "Unknown / not logged"}</li>
-                <li>Claimed: {events.some((e) => e.event_type === "claimed") || token.claim_lat != null ? "Yes" : "No"}</li>
+                <li>
+                  Opened:{" "}
+                  {events.some((e) => e.event_type === "opened")
+                    ? "Yes"
+                    : "Unknown / not logged"}
+                </li>
+                <li>
+                  Claimed:{" "}
+                  {events.some((e) => e.event_type === "claimed") ||
+                  token.claim_lat != null
+                    ? "Yes"
+                    : "No"}
+                </li>
                 <li>
                   Redeemed:{" "}
                   {purchase
@@ -185,7 +243,13 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
                 </li>
                 <li>Expired: {expired ? "Yes" : "No"}</li>
                 <li>Active: {!expired && !purchase ? "Yes" : "No"}</li>
-                <li>Child shares: {children.length}</li>
+                <li>Direct child shares: {directChildren.length}</li>
+                <li>
+                  All downstream tokens: {descendants.length}
+                  {descendants.length > 0
+                    ? ` (deepest depth ${maxDescDepth})`
+                    : ""}
+                </li>
               </ul>
             </section>
 
@@ -206,16 +270,25 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
 
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
               <h2 className="font-semibold text-zinc-900">
-                Descendants (downstream)
+                Descendants (full downstream tree)
               </h2>
-              {children.length === 0 ? (
-                <p className="mt-2 text-sm text-zinc-500">No child shares yet.</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Indented by generation: child → grandchild → great-grandchild →
+                depth 4.
+              </p>
+              {descendants.length === 0 ? (
+                <p className="mt-2 text-sm text-zinc-500">No downstream shares yet.</p>
               ) : (
-                <ul className="mt-3 space-y-2 text-sm">
-                  {children.map((c) => (
-                    <li key={c.id} className="font-mono text-zinc-800">
-                      {toPublicUserId(c.holder_user_id)} · {c.code} · depth{" "}
-                      {c.depth}
+                <ul className="mt-3 space-y-1.5 text-sm">
+                  {descendants.map(({ token: d, indent }) => (
+                    <li
+                      key={d.id}
+                      className="font-mono text-zinc-800"
+                      style={{ paddingLeft: indent * 16 }}
+                    >
+                      {indent > 0 ? "└ " : ""}
+                      {toPublicUserId(d.holder_user_id)} · {d.code} · depth{" "}
+                      {d.depth}
                     </li>
                   ))}
                 </ul>
