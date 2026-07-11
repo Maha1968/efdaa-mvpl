@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { rejectPurchase, validatePurchase } from "@/lib/actions/purchases";
 
 type AdminPurchaseActionsProps = {
@@ -8,23 +8,33 @@ type AdminPurchaseActionsProps = {
 };
 
 export function AdminPurchaseActions({ purchaseId }: AdminPurchaseActionsProps) {
-  const [loading, setLoading] = useState<"validate" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const [action, setAction] = useState<"validate" | "reject" | null>(null);
 
-  async function handleValidate() {
-    setLoading("validate");
+  function handleValidate() {
     setError(null);
-    const result = await validatePurchase(purchaseId);
-    if (result.error) setError(result.error);
-    setLoading(null);
+    setAction("validate");
+    startTransition(async () => {
+      const result = await validatePurchase(purchaseId);
+      // redirect() throws; only handle returned errors
+      if (result?.error) {
+        setError(result.error);
+        setAction(null);
+      }
+    });
   }
 
-  async function handleReject() {
-    setLoading("reject");
+  function handleReject() {
     setError(null);
-    const result = await rejectPurchase(purchaseId);
-    if (result.error) setError(result.error);
-    setLoading(null);
+    setAction("reject");
+    startTransition(async () => {
+      const result = await rejectPurchase(purchaseId);
+      if (result?.error) {
+        setError(result.error);
+      }
+      setAction(null);
+    });
   }
 
   return (
@@ -33,18 +43,18 @@ export function AdminPurchaseActions({ purchaseId }: AdminPurchaseActionsProps) 
         <button
           type="button"
           onClick={handleValidate}
-          disabled={loading !== null}
+          disabled={isPending}
           className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
         >
-          {loading === "validate" ? "Validating..." : "Validate"}
+          {isPending && action === "validate" ? "Validating..." : "Validate"}
         </button>
         <button
           type="button"
           onClick={handleReject}
-          disabled={loading !== null}
+          disabled={isPending}
           className="rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 disabled:opacity-60"
         >
-          {loading === "reject" ? "Rejecting..." : "Reject"}
+          {isPending && action === "reject" ? "Rejecting..." : "Reject"}
         </button>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}

@@ -3,6 +3,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
 import { computePurchaseSignalFlags } from "@/lib/purchases/validation";
+import { computeGenuinenessScore } from "@/lib/purchases/genuineness";
+import { computeRewardSplit } from "@/lib/purchases/rewards";
+import { buildTokenChain } from "@/lib/purchases/chain";
 import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -116,15 +119,21 @@ export async function validatePurchase(purchaseId: string) {
     return { error: "Token not found." };
   }
 
-  const [{ data: product }, { data: store }] = await Promise.all([
-    supabase.from("products").select("*").eq("id", token.product_id).single(),
-    purchase.store_id
-      ? supabase.from("stores").select("*").eq("id", purchase.store_id).single()
-      : Promise.resolve({ data: null }),
-  ]);
+  const [{ data: product }, { data: store }, { data: offer }] =
+    await Promise.all([
+      supabase.from("products").select("*").eq("id", token.product_id).single(),
+      purchase.store_id
+        ? supabase.from("stores").select("*").eq("id", purchase.store_id).single()
+        : Promise.resolve({ data: null }),
+      supabase.from("offers").select("*").eq("id", token.offer_id).single(),
+    ]);
 
   if (!product) {
     return { error: "Product not found." };
+  }
+
+  if (!offer) {
+    return { error: "Offer not found." };
   }
 
   const fetchParentToken = async (parentId: string) => {
@@ -144,6 +153,25 @@ export async function validatePurchase(purchaseId: string) {
     fetchParentToken,
   });
 
+  const chain = await buildTokenChain(token, fetchParentToken);
+
+  const genuineness = computeGenuinenessScore(flags, chain, purchase);
+
+  const amount = Number(purchase.amount);
+  const basePool = Number(
+    (
+      amount *
+      Number(offer.base_reward_pct) *
+      genuineness.genuineness_score
+    ).toFixed(2),
+  );
+
+  const allocations = computeRewardSplit({
+    chain,
+    buyerUserId: purchase.buyer_user_id,
+    basePool,
+  });
+
   const { error: updateError } = await supabase
     .from("purchases")
     .update({
@@ -154,6 +182,7 @@ export async function validatePurchase(purchaseId: string) {
       time_to_purchase_hours: flags.time_to_purchase_hours,
       min_hop_distance_m: flags.min_hop_distance_m,
       min_hop_time_minutes: flags.min_hop_time_minutes,
+      genuineness_score: genuineness.genuineness_score,
     })
     .eq("id", purchaseId);
 
@@ -161,8 +190,25 @@ export async function validatePurchase(purchaseId: string) {
     return { error: updateError.message };
   }
 
+  // Only write rewards for a validated purchase (SPEC). Skip zero-pool edge case inserts of all zeros.
+  if (allocations.length > 0) {
+    const { error: rewardsError } = await supabase.from("rewards").insert(
+      allocations.map((a) => ({
+        purchase_id: purchaseId,
+        user_id: a.user_id,
+        role: a.role,
+        amount: a.amount,
+      })),
+    );
+
+    if (rewardsError) {
+      return { error: rewardsError.message };
+    }
+  }
+
   revalidatePath("/admin/purchases");
-  return { success: true };
+  revalidatePath(`/admin/purchases/${purchaseId}`);
+  redirect(`/admin/purchases/${purchaseId}`);
 }
 
 export async function rejectPurchase(purchaseId: string) {
