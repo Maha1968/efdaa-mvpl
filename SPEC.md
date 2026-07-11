@@ -145,13 +145,16 @@ that look self-dealing. Start at `1.0`, then apply these configurable adjustment
   purchase GPS is within `STORE_MATCH_MAX_DISTANCE_M` (**50 m**) of the **originator’s store**
   GPS (and `store_id` is that store). Claim/open may be elsewhere; purchase should be at the
   originator’s store. Miss is a harsh score cut, not a hard reject.
-- **Proximity-time check (anti-collusion):** Intermediate shares may be tracked for display
-  (consecutive claim places/times), but they do **not** change the score. The score uses **one**
-  comparison only: **originator claim** ↔ **purchaser’s token claim** (the redeemed token’s
-  `claim_lat/lng` + `created_at` vs the originator’s). If that pair is **both** too near
-  (`distance < MIN_GENUINE_DISTANCE_METERS`, default **1000**) **and** too fast
-  (`gap < MIN_GENUINE_TIME_MINUTES`, default **60**), apply × `PROXIMITY_PENALTY_MULTIPLIER` (0.4)
-  once. Far apart **or** enough time clears the check.
+- **Proximity-time check (anti-collusion) — THE CLAIM only:** Intermediate shares may be
+  tracked for display, but they do **not** change the score. The score uses **one** comparison:
+  **originator claim** ↔ **buyer claim** (redeemed token `claim_lat/lng` + `created_at` vs the
+  originator’s). If that pair is **both** too near (`distance < MIN_GENUINE_DISTANCE_METERS`,
+  default **1000**) **and** too fast (`gap < MIN_GENUINE_TIME_MINUTES`, default **60**), apply
+  × `PROXIMITY_PENALTY_MULTIPLIER` (**0.01**) once. Far apart **or** enough time clears the check.
+  **Rationale:** a genuine buyer is persuaded by the coupon *before* they go to the store; a
+  claim next to the originator minutes later is collusion.
+- **THE PURCHASE (from receipt) never feeds proximity:** `purchase_lat/lng` and
+  `receipt_purchased_at` are for store_match, within_window, and purchase duration only.
 
 **Durations (same originator baseline):**
 - Claim duration = buyer claim time − originator share time
@@ -181,7 +184,7 @@ When a purchase is marked **validated**:
 - `STORE_MATCH_MAX_DISTANCE_M` = 50
 - `MIN_GENUINE_DISTANCE_METERS` = 1000
 - `MIN_GENUINE_TIME_MINUTES` = 60
-- `PROXIMITY_PENALTY_MULTIPLIER` = 0.4
+- `PROXIMITY_PENALTY_MULTIPLIER` = 0.01
 - reward weights: `buyer 4, last_referrer 3, originator 2, forwarder 1`
 - `base_reward_pct` (also stored per offer)
 - `ZERO_SCORE_FLOOR_REWARD_PCT` = 0.001 (0.1% of purchase when score/pool is 0) — change after launch
@@ -513,6 +516,51 @@ no horizontal scroll, thumb-sized sticky primary actions, clear location/upload 
 hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
 ```
 
+### Stage 7H — Proximity penalty to 0.01, and make the claim-vs-receipt distinction explicit
+```
+Re-read SPEC.md. Change ONE config value, tighten the wording so the claim/receipt distinction can
+never be confused again, and re-seed the demo. Do NOT touch role logic, lineage, expiry,
+base_reward_pct, store-match logic, role weights, or the zero-score floor.
+
+CONFIG CHANGE (config/rewards.ts):
+- PROXIMITY_PENALTY_MULTIPLIER: 0.4 → 0.01
+- Leave MIN_GENUINE_DISTANCE_METERS = 1000 and MIN_GENUINE_TIME_MINUTES = 60 (already correct).
+Update SPEC.md Section 4 and the config list to read 0.01.
+
+THE RULE — state it in the code comments and on /demo exactly this way, because these are TWO
+DIFFERENT EVENTS and must never be mixed:
+
+  THE CLAIM (drives the fraud/genuineness score, and nothing else):
+    - WHERE and WHEN the buyer OPENED the coupon.
+    - Source: the redeemed token's claim_lat / claim_lng / created_at.
+    - Scoring comparison: originator's claim ↔ buyer's claim. If they are BOTH within
+      MIN_GENUINE_DISTANCE_METERS (1000m) AND within MIN_GENUINE_TIME_MINUTES (60 min),
+      multiply the genuineness score by PROXIMITY_PENALTY_MULTIPLIER (0.01), once.
+    - Rationale: a genuine buyer is persuaded by the coupon BEFORE they go to the store. A claim
+      made right next to the originator, minutes later, means the buyer never needed persuading —
+      that is collusion.
+
+  THE PURCHASE (drives validation and store-match — NEVER the proximity score):
+    - WHERE and WHEN the purchase happened, taken from the RECEIPT.
+    - Source: purchase_lat / purchase_lng and receipt_purchased_at.
+    - Used for: store_match, within_window, and purchase duration.
+    - The purchase location/time must NOT feed the proximity check.
+
+Intermediate hops remain display-only and never affect the score.
+
+THEN RE-SEED the Stage 7E demo chains and re-run the REAL validation path
+(applyPurchaseValidation). Do not hard-code any score or reward:
+- DEMOGEN0 (Genuine): buyer's CLAIM well over 1000m and well over 60 minutes later; purchase at
+  partner store. Score 1.00, full 5% pool.
+- DEMOPRX0 (Suspicious): buyer's CLAIM ~8–10m from originator, a few minutes later. Penalty →
+  score 0.01. On ₹1,299 ≈ ₹0.65 total.
+- DEMOEXP0 (Expired): receipt time after expires_at → score 0 → zero-score floor.
+
+ON /demo: label BUYER CLAIMED vs PURCHASE (from receipt) separately; scoring hop =
+"this is what scores genuineness"; purchase marked "confirms the purchase; does not affect the
+fraud score".
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -527,7 +575,7 @@ hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
 - [ ] Stage 5: A receipt uploads with originator store locked, GPS, receipt date/time, barcode;
       I can validate/reject.
 - [ ] Stage 6: Genuineness scores correctly — proximity uses originator claim ↔ buyer token claim
-      only (&lt;1000m AND &lt;60 min → penalty); store_match = within 50m of originator store
+      only (&lt;1000m AND &lt;60 min → ×0.01); store_match = within 50m of originator store
       (miss → ×0.01); window/duration from receipt_purchased_at; floor when score 0.
 - [ ] Stage 7: I can trace any full chain and see the leaderboard.
 - [ ] Stage 7A: Customer dashboard shows only my products + depth aggregates (no others' tokens
@@ -550,6 +598,8 @@ hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
 - [ ] Stage 7G: Public /demo shows Genuine / Proximity / Expired; purchase at originator store
       (≤50m); receipt time drives purchase duration (≥ claim gap); scoring hop =
       originator↔buyer claim; mobile at 375px.
+- [ ] Stage 7H: PROXIMITY_PENALTY_MULTIPLIER = 0.01; /demo labels BUYER CLAIMED vs PURCHASE
+      (from receipt) separately; DEMOPRX score 0.01 (~₹0.65 on ₹1299); claim never uses receipt.
 
 ---
 

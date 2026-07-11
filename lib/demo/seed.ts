@@ -52,11 +52,18 @@ const STORE = {
   text: "EFDAA Partner Store, Koramangala",
 } as const;
 
-/** Buyer claim near originator (at the partner store) for proximity demo. */
+/** Buyer claim ~8m from originator at the partner store (proximity demo). */
 const PROX_BUYER = {
   lat: 12.93529,
   lng: 77.62448,
-  text: "Near EFDAA Partner Store (~10m away)",
+  text: "Near EFDAA Partner Store (~8m away)",
+} as const;
+
+/** Far claim place for genuine demo buyer (>1000m from Koramangala store). */
+const GENUINE_BUYER_CLAIM = {
+  lat: 12.9166,
+  lng: 77.6101,
+  text: "BTM Layout",
 } as const;
 
 type Place = { lat: number; lng: number; text: string };
@@ -774,7 +781,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      place: placeAt(placeCounter.n++),
+      // Buyer CLAIM far + 8h later → no proximity penalty; receipt is separate.
+      place: GENUINE_BUYER_CLAIM,
       at: hoursAfter(t0, 8),
       expiresAt,
       originatorStoreId: store.id,
@@ -828,7 +836,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      // Buyer claims ~10m from originator (at the same store) → proximity penalty.
+      // Buyer CLAIM ~8m / 2 min from originator claim → proximity ×0.01.
+      // Receipt purchase later at the same store does NOT feed proximity.
       place: PROX_BUYER,
       at: minutesAfter(t0, 2),
       expiresAt,
@@ -844,7 +853,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
         storeId: store.id,
         barcode: product.barcode,
         amount: product.price,
-        // Claim near originator (scores reduced); checkout later at Koramangala store.
+        // Receipt ~25 min after claim; store_match OK; score from claim proximity only.
         at: minutesAfter(t0, 2 + 25),
         codes: [A.code, B.code],
       }),

@@ -13,6 +13,27 @@ import {
 import { haversineMeters } from "@/lib/geo/haversine";
 import type { SignalFlags } from "@/lib/purchases/validation";
 
+/**
+ * TWO DIFFERENT EVENTS — never mix them in scoring:
+ *
+ * THE CLAIM (drives the fraud/genuineness proximity score, and nothing else):
+ *   WHERE and WHEN the buyer OPENED the coupon.
+ *   Source: redeemed token claim_lat / claim_lng / created_at.
+ *   Scoring: originator claim ↔ buyer claim. If BOTH within
+ *   MIN_GENUINE_DISTANCE_METERS AND MIN_GENUINE_TIME_MINUTES → × PROXIMITY_PENALTY_MULTIPLIER.
+ *   Rationale: a genuine buyer is persuaded by the coupon BEFORE they go to the store.
+ *   A claim made right next to the originator, minutes later, means the buyer never needed
+ *   persuading — that is collusion.
+ *
+ * THE PURCHASE (drives validation and store-match — NEVER the proximity score):
+ *   WHERE and WHEN the purchase happened, from the RECEIPT.
+ *   Source: purchase_lat / purchase_lng and receipt_purchased_at.
+ *   Used for: store_match, within_window, purchase duration.
+ *   Purchase location/time must NOT feed the proximity check.
+ *
+ * Intermediate hops are display-only and never affect the score.
+ */
+
 export type HopDetail = {
   index: number;
   fromLabel: string;
@@ -74,7 +95,7 @@ function gapBetween(prev: ChainPoint, next: ChainPoint) {
   };
 }
 
-/** Distance/time from originator claim to the redeemed token's claim. */
+/** Distance/time from originator CLAIM to the redeemed token's CLAIM (proximity only). */
 export function computeOriginatorToBuyerClaimGap(chain: Token[]) {
   if (chain.length === 0) {
     return {
@@ -216,8 +237,16 @@ export function computeGenuinenessScore(
 
   if (scoring.suspicious) {
     score *= PROXIMITY_PENALTY_MULTIPLIER;
+    const distPart =
+      scoring.distance_m != null
+        ? `${Math.round(scoring.distance_m)}m`
+        : `<${MIN_GENUINE_DISTANCE_METERS}m`;
+    const timePart =
+      scoring.time_minutes != null
+        ? `${Math.round(scoring.time_minutes)} minute${Math.round(scoring.time_minutes) === 1 ? "" : "s"} later`
+        : `within ${MIN_GENUINE_TIME_MINUTES} min`;
     reasons.push(
-      `Proximity-time penalty × ${PROXIMITY_PENALTY_MULTIPLIER} (originator claim ↔ buyer claim was both <${MIN_GENUINE_DISTANCE_METERS}m and <${MIN_GENUINE_TIME_MINUTES} min) → ${score.toFixed(3)}`,
+      `Buyer claimed ${distPart} from the originator, ${timePart} — inside the ${MIN_GENUINE_DISTANCE_METERS}m / ${MIN_GENUINE_TIME_MINUTES} min threshold. Score cut to ${PROXIMITY_PENALTY_MULTIPLIER.toFixed(2)} (×${PROXIMITY_PENALTY_MULTIPLIER}).`,
     );
   } else {
     reasons.push(

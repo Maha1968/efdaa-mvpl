@@ -30,10 +30,14 @@ export const BARCODE_MISS_MULTIPLIER = 0.5;
 export const STORE_MISS_MULTIPLIER = 0.01;
 /** Max metres from originator store GPS for store_match. */
 export const STORE_MATCH_MAX_DISTANCE_M = 50;
-export const PROXIMITY_PENALTY_MULTIPLIER = 0.4;
+/**
+ * Anti-collusion: applied once when originator CLAIM ↔ buyer CLAIM are BOTH
+ * nearer than MIN_GENUINE_DISTANCE_METERS AND faster than MIN_GENUINE_TIME_MINUTES.
+ * Uses claim coordinates/times only — never receipt purchase GPS/time.
+ */
+export const PROXIMITY_PENALTY_MULTIPLIER = 0.01;
 
-/** Anti-collusion: originator claim ↔ purchaser token claim. Penalty if BOTH
- *  nearer than this AND faster than the time threshold. */
+/** Anti-collusion thresholds on originator claim ↔ purchaser token claim. */
 export const MIN_GENUINE_DISTANCE_METERS = 1000;
 export const MIN_GENUINE_TIME_MINUTES = 60;
 

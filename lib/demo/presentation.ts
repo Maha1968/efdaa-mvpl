@@ -7,10 +7,11 @@ import type { Purchase, Reward, RewardRole, Token } from "@/types/database";
 import {
   MIN_GENUINE_DISTANCE_METERS,
   MIN_GENUINE_TIME_MINUTES,
+  PROXIMITY_PENALTY_MULTIPLIER,
+  STORE_MATCH_MAX_DISTANCE_M,
   ZERO_SCORE_FLOOR_REWARD_PCT,
 } from "@/config/rewards";
 import { haversineMeters } from "@/lib/geo/haversine";
-import { STORE_MATCH_MAX_DISTANCE_M } from "@/config/rewards";
 import { purchaseEventTime } from "@/lib/purchases/validation";
 
 export type DemoChainKind = "genuine" | "proximity" | "expired";
@@ -108,23 +109,25 @@ const CHAIN_SPECS: {
     kind: "genuine",
     rootCode: "DEMOGEN0",
     title: "Chain A — Genuine",
-    subtitle: "Kilometres and hours between people",
-    thesis: "Pays in full — the hops clear the anti-collusion bar.",
+    subtitle: "Kilometres and hours between claims",
+    thesis:
+      "Pays in full — the buyer’s CLAIM was far from the originator’s claim and hours later.",
   },
   {
     kind: "proximity",
     rootCode: "DEMOPRX0",
     title: "Chain B — Suspicious proximity",
-    subtitle: "Same place, minutes apart",
-    thesis: "Caught — proximity-time penalty cuts the reward.",
+    subtitle: "Claim near originator, minutes later",
+    thesis:
+      "Caught — buyer CLAIMED next to the originator within 60 min; score ×0.01. The receipt purchase is separate.",
   },
   {
     kind: "expired",
     rootCode: "DEMOEXP0",
     title: "Chain C — Out of window",
-    subtitle: "Purchase after the chain expired",
+    subtitle: "Receipt after the chain expired",
     thesis:
-      "Score is zero — but the attribution record still exists, and the floor still pays.",
+      "Score is zero — receipt time was after expiry; the attribution record still exists, and the floor still pays.",
   },
 ];
 
@@ -278,7 +281,7 @@ async function loadOneChain(
   const nodes: DemoNode[] = chain.map((t, i) => {
     const isBuyerClaim = i === chain.length - 1;
     return {
-      role: isBuyerClaim ? "Buyer claim" : roleForTokenIndex(i, chain.length),
+      role: isBuyerClaim ? "BUYER CLAIMED" : roleForTokenIndex(i, chain.length),
       publicUserId: toPublicUserId(t.holder_user_id),
       place: t.claim_location_text?.trim() || "Claim location",
       coords: formatCoords(t.claim_lat, t.claim_lng),
@@ -379,14 +382,19 @@ async function loadOneChain(
         : "Purchase after the originator's 24h window",
     },
     {
-      label: "Proximity–time (originator ↔ buyer claim)",
+      label: "Proximity–time (originator claim ↔ buyer claim)",
       pass: !genuineness.proximityPenaltyApplied,
       detail: genuineness.proximityPenaltyApplied
-        ? `Flagged: buyer claimed within ${MIN_GENUINE_DISTANCE_METERS}m and ${MIN_GENUINE_TIME_MINUTES} min of the originator` +
-          (suspiciousHop?.distance_m != null
-            ? ` (${Math.round(suspiciousHop.distance_m)}m, ${suspiciousHop.time_minutes?.toFixed(0)} min)`
-            : "")
-        : `Cleared: buyer claim was not both <${MIN_GENUINE_DISTANCE_METERS}m and <${MIN_GENUINE_TIME_MINUTES} min from the originator`,
+        ? `Buyer claimed ${
+            suspiciousHop?.distance_m != null
+              ? `${Math.round(suspiciousHop.distance_m)}m`
+              : "near"
+          } from the originator, ${
+            suspiciousHop?.time_minutes != null
+              ? `${Math.round(suspiciousHop.time_minutes)} minute${Math.round(suspiciousHop.time_minutes) === 1 ? "" : "s"} later`
+              : "soon after"
+          } — inside the ${MIN_GENUINE_DISTANCE_METERS}m / ${MIN_GENUINE_TIME_MINUTES} min threshold. Score cut to ${PROXIMITY_PENALTY_MULTIPLIER.toFixed(2)}.`
+        : `Cleared: buyer claim was not both <${MIN_GENUINE_DISTANCE_METERS}m and <${MIN_GENUINE_TIME_MINUTES} min from the originator claim`,
     },
   ];
 

@@ -135,10 +135,14 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
         )}
       </div>
 
-      {/* Chain flow — claims only */}
+      {/* Chain flow — claims only (fraud score uses claim↔claim, never receipt) */}
       <div className="mt-8">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-          The chain (claims)
+          The chain (claims only)
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Claim = where/when someone opened the coupon. Intermediate hops are
+          display-only. Only originator claim ↔ buyer claim scores genuineness.
         </p>
         <ol className="mt-4 space-y-0">
           {chain.nodes.map((node, i) => (
@@ -155,24 +159,28 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
                 </p>
                 {node.isBuyerClaim ? (
                   <p className="mt-1 text-xs font-medium text-emerald-900">
-                    Place &amp; time the buyer claimed / opened the coupon
+                    BUYER CLAIMED — where &amp; when they opened the coupon (this
+                    feeds the fraud score with the originator claim)
                   </p>
                 ) : null}
                 <p className="mt-1 font-mono text-sm font-medium text-zinc-800">
                   {node.publicUserId}
                 </p>
-                <p className="mt-2 text-sm text-zinc-700">{node.place}</p>
+                <p className="mt-2 text-sm font-medium text-zinc-900">
+                  {node.isBuyerClaim ? `BUYER CLAIMED — ${node.place}` : node.place}
+                </p>
                 {node.coords && (
                   <p className="mt-0.5 font-mono text-xs text-zinc-500">
                     {node.coords}
                   </p>
                 )}
                 <p className="mt-1 text-xs text-zinc-500">
-                  Claimed {new Date(node.at).toLocaleString()}
+                  {node.isBuyerClaim ? "Claimed " : "Claimed "}
+                  {new Date(node.at).toLocaleString()}
                 </p>
               </div>
               {i < chain.claimHops.length ? (
-                <HopBox hop={chain.claimHops[i]} title={`Hop ${i + 1}`} />
+                <HopBox hop={chain.claimHops[i]} title={`Hop ${i + 1} (display only)`} />
               ) : null}
             </li>
           ))}
@@ -180,26 +188,28 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
 
         <HopBox
           hop={chain.scoringHop}
-          title="Scores genuineness"
-          subtitle="Originator claim → buyer claim"
+          title="This is what scores genuineness"
+          subtitle="ORIGINATOR CLAIM ↔ BUYER CLAIM — never the receipt purchase"
         />
       </div>
 
-      {/* Purchase from invoice / store */}
+      {/* Purchase from receipt — does NOT affect fraud/proximity score */}
       <div className="mt-8 border-t border-zinc-100 pt-6">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-          The purchase (from invoice)
+          Purchase (from receipt)
+        </p>
+        <p className="mt-1 text-xs font-medium text-zinc-700">
+          Confirms the purchase; does not affect the fraud score.
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          Store name and address come from the selected partner store on the
-          uploaded receipt.
+          Uses receipt time + purchase GPS for store-match and validity only.
         </p>
 
         {chain.claimToPurchaseHop ? (
           <HopBox
             hop={chain.claimToPurchaseHop}
-            title="Checkout vs originator"
-            subtitle="Distance: buyer claim place → store · Time: originator claim → purchase (must exceed claim gap)"
+            title="Receipt vs originator share"
+            subtitle="Distance: claim place → store · Time: originator share → receipt (not used for proximity)"
           />
         ) : null}
 
@@ -217,23 +227,23 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
             </div>
           )}
           <div className="min-w-0 text-sm text-zinc-700">
-            <p className="font-semibold text-zinc-900">{chain.productName}</p>
-            <p className="mt-1 font-mono text-xs">{chain.barcode}</p>
-            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              Store of purchase (from invoice)
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              PURCHASE (from receipt)
             </p>
-            <p className="mt-0.5 font-medium text-zinc-900">{chain.storeName}</p>
-            {chain.storeAddress ? (
-              <p className="mt-0.5 text-sm text-zinc-600">{chain.storeAddress}</p>
-            ) : null}
+            <p className="mt-1 font-semibold text-zinc-900">{chain.productName}</p>
+            <p className="mt-1 font-mono text-xs">{chain.barcode}</p>
+            <p className="mt-3 text-sm font-medium text-zinc-900">
+              {chain.storeName}
+              {chain.storeAddress ? ` — ${chain.storeAddress}` : ""}
+            </p>
             <p className="mt-2 text-sm font-medium text-zinc-900">
-              Distance to originator store GPS:{" "}
+              Store distance:{" "}
               {chain.purchaseVsStoreMeters != null
                 ? `${chain.purchaseVsStoreMeters.toFixed(0)} m`
                 : "—"}
               {chain.purchaseVsStoreMeters != null &&
               chain.purchaseVsStoreMeters < 50
-                ? " (at store)"
+                ? " (at originator store)"
                 : ""}
             </p>
             {chain.purchaseCoords ? (
@@ -244,11 +254,7 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
             <p className="mt-1 text-xs text-zinc-500">
               Receipt time {new Date(chain.purchaseAt).toLocaleString()}
               {chain.minutesOriginToPurchase != null
-                ? ` · ${formatDurationMinutes(chain.minutesOriginToPurchase)} from originator claim`
-                : ""}
-              {chain.minutesClaimToPurchase != null &&
-              chain.minutesClaimToPurchase > 0
-                ? ` (${formatDurationMinutes(chain.minutesClaimToPurchase)} after buyer claim)`
+                ? ` · ${formatDurationMinutes(chain.minutesOriginToPurchase)} from originator share`
                 : ""}
             </p>
             <p className="mt-2 text-lg font-semibold text-zinc-900">
