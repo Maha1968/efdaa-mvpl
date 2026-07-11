@@ -81,7 +81,10 @@ export function DemoDataPanel() {
         <span className="font-mono">DEMOT1A</span>,{" "}
         <span className="font-mono">DEMOT2A</span>,{" "}
         <span className="font-mono">DEMOT3A</span>. Load may take up to a
-        minute. Then open Network or Referral Assist.
+        minute. Then open Network or Referral Assist. Customer login for{" "}
+        <span className="font-mono">DEMOT1A</span> originator:{" "}
+        <span className="font-mono">demo_user@gmail.com</span> /{" "}
+        <span className="font-mono">demo_user</span>.
       </p>
 
       <div className="mt-4 flex flex-wrap gap-3">

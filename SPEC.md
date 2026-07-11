@@ -412,6 +412,36 @@ ADMIN UI ADDITIONS FOR THE DEMO
   "deeper than this buyer" is empty for depth-4 leaves); plus rewards from this purchase by
   recipient depth.
 - Overview Opens metric depends on referral_events; after creating the table, Reset + Load again.
+- Convenience customer login for DEMOT1A originator: demo_user@gmail.com / demo_user
+  (other seed people remain on @efdaa.demo).
+```
+
+### Stage 7F — Customer points dashboard (my recommendations & my earnings)
+```
+Build the CUSTOMER-facing points dashboard at /rewards. Administrators must never see or access
+it (redirect to /admin) and never earn points. Do not change reward, genuineness, or role logic —
+read-only presentation of engine-computed rewards. Amounts use REWARD_DISPLAY_DECIMALS.
+
+TOP — headline "You have X EFDAA points" (lifetime total) plus three clickable cards that scroll
+to sections: As Originator / As Forwarder / As Buyer. Group rewards by role: originator; forwarder
++ last_referrer (card total); buyer. Detail views label last_referrer accurately. Keep Stage 7D
+"Buy using EFDAA points" → /efdaagifts prominent.
+
+SECTION 1 — AS ORIGINATOR: each depth-0 token the customer started — product name + photo,
+date, status (Active/Expired/Completed), purchase count, points earned. Expand for performance
+by level 1–5: forwards, purchases, purchase value, points attributable to that level. Aggregates
+only — no names, phones, emails, User IDs, or token codes of anyone downstream.
+
+SECTION 2 — AS FORWARDER: each of their depth>0 tokens that earned forwarder/last_referrer
+points — product, date forwarded, converted flag, points, earn-as label. No level tree; no
+originator or other people in the chain.
+
+SECTION 3 — AS BUYER: each validated purchase they made — product, store, date, amount, buyer
+points.
+
+PRIVACY: only own recommendations, forwards, purchases, points, and depth aggregates for chains
+they originated. Never genuineness/fraud internals. Friendly empty states per section.
+Verify with Stage 7E demo login: demo_user@gmail.com / demo_user (DEMOT1A originator).
 ```
 
 ---
@@ -443,6 +473,9 @@ ADMIN UI ADDITIONS FOR THE DEMO
 - [ ] Stage 7E: Admin Demo Data Load seeds DEMOT1A/2A/3A (+ DEMOPRX0/DEMOEXP0); genuineness +
       rewards from real engine; reset removes only is_demo rows; Opens > 0 after schema_stage7a +
       Load; Assist/Network show (P) on purchase tokens; Purchase view shows tree-by-depth totals.
+- [ ] Stage 7F: /rewards shows lifetime points + Originator/Forwarder/Buyer cards and sections;
+      originator expand has level aggregates only (no PII/codes); forwarder/buyer lists privacy-safe;
+      Buy using EFDAA points still links to /efdaagifts; admins redirected away.
 
 ---
 

@@ -7,6 +7,17 @@ import type { ValidationApplyResult } from "@/lib/purchases/apply-validation";
 /** Demo emails — never overlap ADMIN_EMAIL. Domain is reserved for seed accounts. */
 export const DEMO_EMAIL_DOMAIN = "efdaa.demo";
 
+/**
+ * Convenience login for the main demo originator (DEMOT1A / person key t1a).
+ * Other seeded people stay on @efdaa.demo.
+ */
+export const DEMO_LOGIN = {
+  key: "t1a",
+  email: "demo_user@gmail.com",
+  password: "demo_user",
+  name: "Demo User",
+} as const;
+
 const PLACEHOLDER_PRODUCT =
   "https://placehold.co/800x600/png?text=Demo+Product";
 const PLACEHOLDER_BARCODE =
@@ -103,9 +114,14 @@ async function ensureDemoCustomer(
   key: string,
   emailCache: Map<string, string>,
 ): Promise<string> {
-  const email = `demo.${key.toLowerCase()}@${DEMO_EMAIL_DOMAIN}`;
-  const name = `Demo ${key}`;
-  const password = `Demo-${key}-Seed-9x!`;
+  const isPrimaryLogin = key.toLowerCase() === DEMO_LOGIN.key;
+  const email = isPrimaryLogin
+    ? DEMO_LOGIN.email
+    : `demo.${key.toLowerCase()}@${DEMO_EMAIL_DOMAIN}`;
+  const name = isPrimaryLogin ? DEMO_LOGIN.name : `Demo ${key}`;
+  const password = isPrimaryLogin
+    ? DEMO_LOGIN.password
+    : `Demo-${key}-Seed-9x!`;
 
   const cached = emailCache.get(email.toLowerCase());
   if (cached) {
@@ -113,6 +129,14 @@ async function ensureDemoCustomer(
       { id: cached, name, phone: null, role: "customer", is_demo: true },
       { onConflict: "id" },
     );
+    // Keep Auth password in sync for the primary demo login (Reset + Load).
+    if (isPrimaryLogin) {
+      await admin.auth.admin.updateUserById(cached, {
+        password,
+        email_confirm: true,
+        user_metadata: { name },
+      });
+    }
     return cached;
   }
 
@@ -133,6 +157,13 @@ async function ensureDemoCustomer(
     userId = emailCache.get(email.toLowerCase());
     if (!userId) {
       throw new Error(`Failed to create ${email}: ${error?.message}`);
+    }
+    if (isPrimaryLogin) {
+      await admin.auth.admin.updateUserById(userId, {
+        password,
+        email_confirm: true,
+        user_metadata: { name },
+      });
     }
   } else {
     emailCache.set(email.toLowerCase(), userId);
@@ -539,7 +570,11 @@ export async function resetDemoData(admin: SupabaseClient) {
 
   const { data: listed } = await admin.auth.admin.listUsers({ perPage: 1000 });
   for (const u of listed?.users ?? []) {
-    if (u.email?.toLowerCase().endsWith(`@${DEMO_EMAIL_DOMAIN}`)) {
+    const email = u.email?.toLowerCase() ?? "";
+    if (
+      email.endsWith(`@${DEMO_EMAIL_DOMAIN}`) ||
+      email === DEMO_LOGIN.email.toLowerCase()
+    ) {
       await admin.auth.admin.deleteUser(u.id);
     }
   }
@@ -785,6 +820,6 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
   return {
     reports,
     assistCodes: rootCodes,
-    summary: `Seeded ${tokenCount} tokens. Open Network/Assist on: ${rootCodes.join(", ")}.`,
+    summary: `Seeded ${tokenCount} tokens. Open Network/Assist on: ${rootCodes.join(", ")}. Customer login (DEMOT1A originator): ${DEMO_LOGIN.email} / ${DEMO_LOGIN.password}.`,
   };
 }
