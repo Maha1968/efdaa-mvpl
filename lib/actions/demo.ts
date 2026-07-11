@@ -11,6 +11,7 @@ export type DemoActionResult =
       action: "load";
       reports: ChainSeedReport[];
       assistCodes: string[];
+      summary: string;
     }
   | { ok: true; action: "reset"; message: string }
   | { ok: false; error: string };
@@ -22,17 +23,29 @@ export async function loadDemoDataAction(): Promise<DemoActionResult> {
 
   try {
     const admin = createServiceClient();
-    const { reports, assistCodes } = await loadDemoData(admin);
+    const { reports, assistCodes, summary } = await loadDemoData(admin);
     revalidatePath("/admin");
     revalidatePath("/admin/network");
     revalidatePath("/admin/assist");
     revalidatePath("/admin/purchase-view");
     revalidatePath("/admin/purchases");
-    return { ok: true, action: "load", reports, assistCodes };
+    // Keep response small — large report payloads can crash the admin page on Vercel.
+    return {
+      ok: true,
+      action: "load",
+      reports: reports.slice(0, 5),
+      assistCodes,
+      summary,
+    };
   } catch (e) {
+    const message =
+      e instanceof Error ? e.message : "Failed to load demo data.";
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Failed to load demo data.",
+      error:
+        message.includes("timed out") || message.includes("TIMEOUT")
+          ? "Load timed out on the server. Reset and try again — the seed has been slimmed for Vercel."
+          : message,
     };
   }
 }

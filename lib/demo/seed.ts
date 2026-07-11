@@ -236,13 +236,7 @@ async function createTokenNode(input: {
     await insertEvent(admin, data.id, "opened", input.holderUserId, input.at);
   }
   if (input.shared) {
-    await insertEvent(
-      admin,
-      data.id,
-      "shared",
-      input.holderUserId,
-      minutesAfter(input.at, 5),
-    );
+    // Skip 'shared' events in bulk seed — claim+open are enough for Opens metric.
   }
 
   return data as TokenRow;
@@ -365,6 +359,32 @@ async function growDepth4Tree(input: {
 
   const need = async (key: string) =>
     ensureDemoCustomer(admin, key, emailCache);
+
+  // Pre-create all person keys for this tree in parallel batches (faster / less timeout risk).
+  const personKeys = new Set<string>([`${personPrefix}a`]);
+  {
+    let paths = [{ codePath: treeTag, personPath: personPrefix }];
+    for (let depth = 0; depth < 4; depth++) {
+      const childCount = fanout[depth];
+      const next: typeof paths = [];
+      for (const p of paths) {
+        for (let i = 1; i <= childCount; i++) {
+          const letter = DEPTH_LETTER[depth + 1];
+          const personKey = `${p.personPath}${letter.toLowerCase()}${i}`;
+          personKeys.add(personKey);
+          next.push({
+            codePath: `${p.codePath}${letter}${i}`,
+            personPath: personKey,
+          });
+        }
+      }
+      paths = next;
+    }
+  }
+  const keyList = [...personKeys];
+  for (let i = 0; i < keyList.length; i += 8) {
+    await Promise.all(keyList.slice(i, i + 8).map((k) => need(k)));
+  }
 
   const nextPlace = () => placeAt(placeCounter.n++);
   const expiresAt = hoursAfter(t0, TOKEN_VALIDITY_HOURS);
@@ -513,18 +533,13 @@ export async function resetDemoData(admin: SupabaseClient) {
 }
 
 /**
- * Large branching demo trees — every main tree reaches depth 4:
- * parent → child → grandchild → great-grandchild → (depth 4).
- *
- * Roots to open in Network / Assist:
- * - DEMOT1A (tea)   fanout 3×3×2×2
- * - DEMOT2A (coffee) fanout 3×2×2×2
- * - DEMOT3A (spice)  fanout 2×2×2×2
- * - DEMOT4A (oil)    fanout 2×3×2×2
+ * Compact depth-4 branching trees (sized to finish on Vercel serverless).
+ * Roots: DEMOT1A (tea), DEMOT2A (coffee), DEMOT3A (spice).
  */
 export async function loadDemoData(admin: SupabaseClient): Promise<{
   reports: ChainSeedReport[];
   assistCodes: string[];
+  summary: string;
 }> {
   await resetDemoData(admin);
 
@@ -580,9 +595,11 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
   if (storeError || !store) throw new Error(storeError?.message ?? "store");
 
   const reports: ChainSeedReport[] = [];
-  const assistCodes: string[] = [];
+  const rootCodes: string[] = [];
   const placeCounter = { n: 0 };
+  let tokenCount = 0;
 
+  // Modest fanout so Load finishes within Vercel limits (~31 tokens/tree).
   const trees: {
     treeTag: string;
     personPrefix: string;
@@ -596,7 +613,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       personPrefix: "t1",
       productKey: "tea",
       hoursAgoStart: 21,
-      fanout: [3, 3, 2, 2],
+      fanout: [2, 2, 2, 2],
       redeemEveryNthLeaf: 4,
     },
     {
@@ -604,7 +621,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       personPrefix: "t2",
       productKey: "coffee",
       hoursAgoStart: 19,
-      fanout: [3, 2, 2, 2],
+      fanout: [2, 2, 2, 2],
       redeemEveryNthLeaf: 5,
     },
     {
@@ -612,16 +629,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       personPrefix: "t3",
       productKey: "spice",
       hoursAgoStart: 17,
-      fanout: [2, 2, 2, 2],
-      redeemEveryNthLeaf: 4,
-    },
-    {
-      treeTag: "T4",
-      personPrefix: "t4",
-      productKey: "oil",
-      hoursAgoStart: 16,
-      fanout: [2, 3, 2, 2],
-      redeemEveryNthLeaf: 5,
+      fanout: [2, 2, 2, 1],
+      redeemEveryNthLeaf: 3,
     },
   ];
 
@@ -639,7 +648,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       redeemEveryNthLeaf: tree.redeemEveryNthLeaf,
       placeCounter,
     });
-    assistCodes.push(...grown.codes);
+    rootCodes.push(grown.root.code);
+    tokenCount += grown.codes.length;
     reports.push(...grown.reports);
   }
 
@@ -677,7 +687,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       at: minutesAfter(t0, 2),
       expiresAt,
     });
-    assistCodes.push(A.code, B.code);
+    rootCodes.push(A.code);
+    tokenCount += 2;
     reports.push(
       await validateLeafPurchase({
         admin,
@@ -741,7 +752,8 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       at: hoursAfter(t0, 10),
       expiresAt,
     });
-    assistCodes.push(A.code, B.code, C.code);
+    rootCodes.push(A.code);
+    tokenCount += 3;
     reports.push(
       await validateLeafPurchase({
         admin,
@@ -756,5 +768,9 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
     );
   }
 
-  return { reports, assistCodes };
+  return {
+    reports,
+    assistCodes: rootCodes,
+    summary: `Seeded ${tokenCount} tokens. Open Network/Assist on: ${rootCodes.join(", ")}.`,
+  };
 }
