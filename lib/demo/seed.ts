@@ -162,13 +162,26 @@ async function insertEvent(
   actorUserId: string,
   at: Date,
 ) {
-  await admin.from("referral_events").insert({
+  const row = {
     token_id: tokenId,
     event_type: eventType,
     actor_user_id: actorUserId,
     created_at: at.toISOString(),
     is_demo: true,
-  });
+  };
+  const { error } = await admin.from("referral_events").insert(row);
+  if (error) {
+    // Fallback if is_demo column is missing on referral_events
+    const { error: retryError } = await admin.from("referral_events").insert({
+      token_id: tokenId,
+      event_type: eventType,
+      actor_user_id: actorUserId,
+      created_at: at.toISOString(),
+    });
+    if (retryError) {
+      console.error("referral_events insert failed:", retryError.message);
+    }
+  }
 }
 
 async function createTokenNode(input: {
