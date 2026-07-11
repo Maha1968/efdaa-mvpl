@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
 import { DashboardNav, ADMIN_NAV } from "@/components/dashboard-nav";
+import { DemoDataPanel } from "@/components/demo-data-panel";
 import { toPublicUserId } from "@/lib/privacy/user-id";
 import { formatRewardAmount } from "@/lib/purchases/rewards";
 import { notFound, redirect } from "next/navigation";
@@ -104,7 +105,9 @@ export default async function AdminOverviewPage() {
 
         <DashboardNav current="/admin" links={ADMIN_NAV} />
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <DemoDataPanel />
+
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Recommendations", originators.length],
             ["Opens (logged)", openEvents ?? 0],

@@ -2,19 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
-import { computePurchaseSignalFlags } from "@/lib/purchases/validation";
-import { computeGenuinenessScore } from "@/lib/purchases/genuineness";
-import {
-  computeBasePool,
-  computeRewardSplit,
-  roundRewardAmount,
-} from "@/lib/purchases/rewards";
-import { buildTokenChain } from "@/lib/purchases/chain";
+import { applyPurchaseValidation } from "@/lib/purchases/apply-validation";
 import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
 import { logReferralEvent } from "@/lib/actions/events";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { Token } from "@/types/database";
 
 export type CreatePurchaseInput = {
   tokenCode: string;
@@ -110,138 +102,10 @@ export async function validatePurchase(purchaseId: string) {
   }
 
   const supabase = await createClient();
+  const applied = await applyPurchaseValidation(supabase, purchaseId);
 
-  const { data: purchase, error: purchaseError } = await supabase
-    .from("purchases")
-    .select("*")
-    .eq("id", purchaseId)
-    .single();
-
-  if (purchaseError || !purchase) {
-    return { error: "Purchase not found." };
-  }
-
-  if (purchase.status !== "pending") {
-    return { error: "Purchase is not pending." };
-  }
-
-  const { data: token, error: tokenError } = await supabase
-    .from("tokens")
-    .select("*")
-    .eq("id", purchase.token_id)
-    .single();
-
-  if (tokenError || !token) {
-    return { error: "Token not found." };
-  }
-
-  const [{ data: product }, { data: store }, { data: offer }] =
-    await Promise.all([
-      supabase.from("products").select("*").eq("id", token.product_id).single(),
-      purchase.store_id
-        ? supabase.from("stores").select("*").eq("id", purchase.store_id).single()
-        : Promise.resolve({ data: null }),
-      supabase.from("offers").select("*").eq("id", token.offer_id).single(),
-    ]);
-
-  if (!product) {
-    return { error: "Product not found." };
-  }
-
-  if (!offer) {
-    return { error: "Offer not found." };
-  }
-
-  const fetchParentToken = async (parentId: string) => {
-    const { data } = await supabase
-      .from("tokens")
-      .select("*")
-      .eq("id", parentId)
-      .single();
-    return data as Token | null;
-  };
-
-  const flags = await computePurchaseSignalFlags({
-    purchase,
-    token,
-    product,
-    store: store ?? null,
-    fetchParentToken,
-  });
-
-  const chain = await buildTokenChain(token, fetchParentToken);
-
-  const genuineness = computeGenuinenessScore(flags, chain, purchase);
-
-  const amount = Number(purchase.amount);
-  const { basePool } = computeBasePool({
-    amount,
-    baseRewardPct: Number(offer.base_reward_pct),
-    genuinenessScore: genuineness.genuineness_score,
-  });
-
-  const allocations = computeRewardSplit({
-    chain,
-    buyerUserId: purchase.buyer_user_id,
-    basePool,
-  });
-
-  // Administrators never earn points — drop them and re-split the pool among customers.
-  const recipientIds = [...new Set(allocations.map((a) => a.user_id))];
-  const { data: recipientProfiles } = await supabase
-    .from("users")
-    .select("id, role")
-    .in("id", recipientIds);
-
-  const adminIds = new Set(
-    (recipientProfiles ?? [])
-      .filter((p) => p.role === "admin")
-      .map((p) => p.id),
-  );
-
-  let payable = allocations.filter((a) => !adminIds.has(a.user_id));
-  const payableWeight = payable.reduce((sum, a) => sum + a.weight, 0);
-  if (payableWeight > 0 && basePool > 0) {
-    payable = payable.map((a) => ({
-      ...a,
-      amount: roundRewardAmount((basePool * a.weight) / payableWeight),
-    }));
-  } else {
-    payable = [];
-  }
-
-  const { error: updateError } = await supabase
-    .from("purchases")
-    .update({
-      status: "validated",
-      barcode_match: flags.barcode_match,
-      store_match: flags.store_match,
-      within_window: flags.within_window,
-      time_to_purchase_hours: flags.time_to_purchase_hours,
-      min_hop_distance_m: flags.min_hop_distance_m,
-      min_hop_time_minutes: flags.min_hop_time_minutes,
-      genuineness_score: genuineness.genuineness_score,
-    })
-    .eq("id", purchaseId);
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
-
-  // Only write rewards for a validated purchase (SPEC). Skip zero-pool edge case inserts of all zeros.
-  if (payable.length > 0) {
-    const { error: rewardsError } = await supabase.from("rewards").insert(
-      payable.map((a) => ({
-        purchase_id: purchaseId,
-        user_id: a.user_id,
-        role: a.role,
-        amount: a.amount,
-      })),
-    );
-
-    if (rewardsError) {
-      return { error: rewardsError.message };
-    }
+  if (!applied.ok) {
+    return { error: applied.error };
   }
 
   revalidatePath("/admin/purchases");

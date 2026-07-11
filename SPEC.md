@@ -373,6 +373,38 @@ For this stage only: show the button and a placeholder EFDAAgifts page with a ba
 will plug into this same button/route. Admins must not access EFDAAgifts.
 ```
 
+### Stage 7E — Demo seed data (three contrasting chains)
+```
+Re-read SPEC.md first. We are preparing this app for a live demo. Do NOT change any existing
+business logic, reward maths, genuineness logic, or role rules — only ADD seed data and an
+admin-only way to load and reset it.
+
+Build a "Demo Data" panel on the ADMIN dashboard with two buttons: "Load demo data" and
+"Reset demo data" (wipes only seeded demo rows, leaves real data alone). Tag every seeded row so
+a reset can find and remove it cleanly.
+
+HARD RULES FOR THE SEED
+- Seed CUSTOMERS only. Never seed an administrator. Roles stay permanent and are still assigned
+  on first login via ADMIN_EMAIL. The seed must not write or alter any admin role.
+- Rewards must be produced by CALLING THE REAL reward + genuineness functions on the seeded
+  purchases. Do NOT hard-code genuineness scores or reward amounts. The demo must show numbers
+  the engine actually computed.
+- All dashboards keep the Privacy-by-Design rule: seeded people are shown by platform User ID
+  only. Give them display names ONLY where the app already shows the signed-in customer their
+  own name — never expose seeded PII on admin or analytics views.
+- Respect max depth 4 (chain of 5), TOKEN_VALIDITY_HOURS, and expires_at inheritance.
+- Use realistic Bengaluru coordinates, a plausible product with a barcode, and one partner store.
+  Use placeholder images for product / barcode / receipt photos so nothing renders broken.
+
+SEED BRANCHING TREES (children multiply under each parent) plus scoring contrasts:
+- Tree roots DEMOT1A / DEMOT2A / DEMOT3A: A → several B's → each B fans out to C's
+  (and some C's to D/E) so Network shows a real multi-branch tree.
+- Multiple demo products (tea, coffee, honey, spice).
+- Keep one proximity pair and one expired branch for genuineness contrast.
+Genuine hops use multi-kilometre Bengaluru spacing. Lookup DEMOT1A in Network / Assist.
+Requires SUPABASE_SERVICE_ROLE_KEY and running supabase/schema_demo.sql once.
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -399,6 +431,8 @@ will plug into this same button/route. Admins must not access EFDAAgifts.
       customers; points display to 2 decimal places. Tunables live in config/rewards.ts.
 - [ ] Stage 7D: Points page shows "Buy using EFDAA points"; link opens /efdaagifts with EFDAAgifts
       banner (catalog later). Admins cannot open it.
+- [ ] Stage 7E: Admin Demo Data load seeds Chains A/B/C; genuineness + rewards from real engine;
+      reset removes only is_demo rows; Referral Assist finds DEMOGEN*/DEMOPRX*/DEMOEXP* with User IDs only.
 
 ---
 
