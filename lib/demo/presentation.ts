@@ -19,6 +19,8 @@ export type DemoNode = {
   place: string;
   coords: string | null;
   at: string;
+  /** True for the redeemed token — when the buyer claimed/opened the coupon. */
+  isBuyerClaim?: boolean;
 };
 
 export type DemoHop = {
@@ -46,11 +48,20 @@ export type DemoPresentationChain = {
   title: string;
   subtitle: string;
   thesis: string;
+  /** Token claims only (originator → … → buyer claim). */
   nodes: DemoNode[];
-  hops: DemoHop[];
+  /** Consecutive hops between claim nodes (not purchase). */
+  claimHops: DemoHop[];
+  /** Originator claim ↔ buyer claim — drives proximity score. */
+  scoringHop: DemoHop | null;
+  /** Last claim → purchase event (time/place change before buy). */
+  claimToPurchaseHop: DemoHop | null;
   productName: string;
   barcode: string;
   storeName: string;
+  storeAddress: string | null;
+  purchaseAt: string;
+  purchaseCoords: string | null;
   amount: number;
   receiptImageUrl: string | null;
   score: number;
@@ -175,7 +186,7 @@ async function loadOneChain(
   const { data: store } = purchase.store_id
     ? await admin
         .from("stores")
-        .select("name")
+        .select("name, address, lat, lng")
         .eq("id", purchase.store_id)
         .maybeSingle()
     : { data: null };
@@ -211,23 +222,10 @@ async function loadOneChain(
     genuinenessScore: score,
   });
 
-  const nodes: DemoNode[] = chain.map((t, i) => ({
-    role: roleForTokenIndex(i, chain.length),
-    publicUserId: toPublicUserId(t.holder_user_id),
-    place: t.claim_location_text?.trim() || "Claim location",
-    coords: formatCoords(t.claim_lat, t.claim_lng),
-    at: t.created_at,
-  }));
-
-  nodes.push({
-    role: "Buyer",
-    publicUserId: toPublicUserId(purchase.buyer_user_id),
-    place: store?.name ?? "Partner store",
-    coords: formatCoords(purchase.purchase_lat, purchase.purchase_lng),
-    at: purchase.created_at,
-  });
-
-  const hops: DemoHop[] = genuineness.hops.map((h) => {
+  function formatHopLabel(h: {
+    distance_m: number | null;
+    time_minutes: number | null;
+  }): string {
     const dist =
       h.distance_m != null
         ? h.distance_m < 1000
@@ -240,16 +238,49 @@ async function loadOneChain(
           ? `${Math.round(h.time_minutes)} min`
           : `${(h.time_minutes / 60).toFixed(1)} h`
         : "—";
+    return `${dist} · ${time}`;
+  }
+
+  function toDemoHop(
+    h: {
+      distance_m: number | null;
+      time_minutes: number | null;
+      suspicious: boolean;
+      scoresProximity: boolean;
+    },
+  ): DemoHop {
     return {
       distance_m: h.distance_m,
       time_minutes: h.time_minutes,
       suspicious: h.suspicious,
       scoresProximity: h.scoresProximity,
-      label: `${dist} · ${time}`,
+      label: formatHopLabel(h),
+    };
+  }
+
+  const nodes: DemoNode[] = chain.map((t, i) => {
+    const isBuyerClaim = i === chain.length - 1;
+    return {
+      role: isBuyerClaim ? "Buyer claim" : roleForTokenIndex(i, chain.length),
+      publicUserId: toPublicUserId(t.holder_user_id),
+      place: t.claim_location_text?.trim() || "Claim location",
+      coords: formatCoords(t.claim_lat, t.claim_lng),
+      at: t.created_at,
+      isBuyerClaim,
     };
   });
 
-  const suspiciousHop = genuineness.hops.find((h) => h.scoresProximity);
+  // genuineness.hops = consecutive (claims…→purchase) + scoring hop at end
+  const consecutive = genuineness.hops.filter((h) => !h.scoresProximity);
+  const claimHops = consecutive.slice(0, Math.max(chain.length - 1, 0)).map(toDemoHop);
+  const claimToPurchaseHop =
+    consecutive.length >= chain.length
+      ? toDemoHop(consecutive[chain.length - 1])
+      : null;
+  const scoringRaw = genuineness.hops.find((h) => h.scoresProximity);
+  const scoringHop = scoringRaw ? toDemoHop(scoringRaw) : null;
+
+  const suspiciousHop = scoringRaw;
   const checks: DemoCheck[] = [
     {
       label: "Barcode match",
@@ -298,10 +329,15 @@ async function loadOneChain(
     subtitle: spec.subtitle,
     thesis: spec.thesis,
     nodes,
-    hops,
+    claimHops,
+    scoringHop,
+    claimToPurchaseHop,
     productName: product?.name ?? "Product",
     barcode: product?.barcode ?? purchase.receipt_barcode ?? "—",
     storeName: store?.name ?? "Store",
+    storeAddress: store?.address ?? null,
+    purchaseAt: purchase.created_at,
+    purchaseCoords: formatCoords(purchase.purchase_lat, purchase.purchase_lng),
     amount: Number(purchase.amount),
     receiptImageUrl: purchase.receipt_image_url,
     score,

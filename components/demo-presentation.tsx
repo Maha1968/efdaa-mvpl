@@ -38,6 +38,55 @@ function roleLabel(role: string) {
   return role;
 }
 
+function HopBox({
+  hop,
+  title,
+  subtitle,
+}: {
+  hop: DemoPresentationChain["scoringHop"];
+  title: string;
+  subtitle?: string;
+}) {
+  if (!hop) return null;
+  const emphasis = hop.scoresProximity;
+  const flagged = hop.suspicious;
+  return (
+    <div
+      className={`my-2 flex items-center gap-3 px-2 ${
+        emphasis
+          ? flagged
+            ? "text-amber-800"
+            : "text-emerald-800"
+          : "text-zinc-700"
+      }`}
+    >
+      <div
+        className={`h-8 w-0.5 shrink-0 ${
+          emphasis
+            ? flagged
+              ? "bg-amber-400"
+              : "bg-emerald-500"
+            : "bg-zinc-300"
+        }`}
+      />
+      <div className="min-w-0 flex-1 rounded-xl border border-dashed border-zinc-300 bg-white px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+          {title}
+          {flagged ? " · flagged" : ""}
+        </p>
+        <p
+          className={`${display.className} text-lg font-semibold tabular-nums sm:text-xl`}
+        >
+          {hop.label}
+        </p>
+        {subtitle ? (
+          <p className="mt-1 text-xs text-zinc-600">{subtitle}</p>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
   return (
     <article className="flex flex-col rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
@@ -78,18 +127,29 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
         )}
       </div>
 
-      {/* Chain flow */}
+      {/* Chain flow — claims only */}
       <div className="mt-8">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-          The chain
+          The chain (claims)
         </p>
         <ol className="mt-4 space-y-0">
           {chain.nodes.map((node, i) => (
             <li key={`${node.role}-${node.publicUserId}-${i}`}>
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50/80 px-4 py-3">
+              <div
+                className={`rounded-2xl border px-4 py-3 ${
+                  node.isBuyerClaim
+                    ? "border-emerald-300 bg-emerald-50/70"
+                    : "border-zinc-200 bg-zinc-50/80"
+                }`}
+              >
                 <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
                   {node.role}
                 </p>
+                {node.isBuyerClaim ? (
+                  <p className="mt-1 text-xs font-medium text-emerald-900">
+                    Place &amp; time the buyer claimed / opened the coupon
+                  </p>
+                ) : null}
                 <p className="mt-1 font-mono text-sm font-medium text-zinc-800">
                   {node.publicUserId}
                 </p>
@@ -100,73 +160,72 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
                   </p>
                 )}
                 <p className="mt-1 text-xs text-zinc-500">
-                  {new Date(node.at).toLocaleString()}
+                  Claimed {new Date(node.at).toLocaleString()}
                 </p>
               </div>
-              {i < chain.hops.length && (
-                  <div
-                  className={`my-2 flex items-center gap-3 px-2 ${
-                    chain.hops[i].scoresProximity
-                      ? chain.hops[i].suspicious
-                        ? "text-amber-800"
-                        : "text-emerald-800"
-                      : chain.hops[i].suspicious
-                        ? "text-amber-800"
-                        : "text-zinc-700"
-                  }`}
-                >
-                  <div
-                    className={`h-8 w-0.5 shrink-0 ${
-                      chain.hops[i].scoresProximity
-                        ? chain.hops[i].suspicious
-                          ? "bg-amber-400"
-                          : "bg-emerald-500"
-                        : "bg-zinc-300"
-                    }`}
-                  />
-                  <div className="min-w-0 flex-1 rounded-xl border border-dashed border-zinc-300 bg-white px-3 py-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                      {chain.hops[i].scoresProximity
-                        ? "Scores genuineness"
-                        : `Hop ${i + 1}`}
-                      {chain.hops[i].suspicious ? " · flagged" : ""}
-                    </p>
-                    <p
-                      className={`${display.className} text-lg font-semibold tabular-nums sm:text-xl`}
-                    >
-                      {chain.hops[i].label}
-                    </p>
-                    {chain.hops[i].scoresProximity ? (
-                      <p className="mt-1 text-xs text-zinc-600">
-                        Originator claim → buyer claim
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
-              )}
+              {i < chain.claimHops.length ? (
+                <HopBox hop={chain.claimHops[i]} title={`Hop ${i + 1}`} />
+              ) : null}
             </li>
           ))}
         </ol>
+
+        <HopBox
+          hop={chain.scoringHop}
+          title="Scores genuineness"
+          subtitle="Originator claim → buyer claim"
+        />
       </div>
 
-      {/* Purchase */}
+      {/* Purchase from invoice / store */}
       <div className="mt-8 border-t border-zinc-100 pt-6">
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-          The purchase
+          The purchase (from invoice)
         </p>
-        <div className="mt-3 flex gap-4">
+        <p className="mt-1 text-xs text-zinc-500">
+          Store name and address come from the selected partner store on the
+          uploaded receipt.
+        </p>
+
+        {chain.claimToPurchaseHop ? (
+          <HopBox
+            hop={chain.claimToPurchaseHop}
+            title="Buyer claim → purchase"
+            subtitle="Time/place change from coupon claim to checkout"
+          />
+        ) : null}
+
+        <div className="mt-3 flex gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
           {chain.receiptImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={chain.receiptImageUrl}
-              alt=""
-              className="h-24 w-16 shrink-0 rounded-lg border border-zinc-200 object-cover"
+              alt="Receipt"
+              className="h-28 w-20 shrink-0 rounded-lg border border-zinc-200 object-cover"
             />
-          ) : null}
+          ) : (
+            <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-white text-center text-[10px] text-zinc-400">
+              Receipt
+            </div>
+          )}
           <div className="min-w-0 text-sm text-zinc-700">
             <p className="font-semibold text-zinc-900">{chain.productName}</p>
             <p className="mt-1 font-mono text-xs">{chain.barcode}</p>
-            <p className="mt-1">{chain.storeName}</p>
+            <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Store of purchase
+            </p>
+            <p className="mt-0.5 font-medium text-zinc-900">{chain.storeName}</p>
+            {chain.storeAddress ? (
+              <p className="mt-0.5 text-sm text-zinc-600">{chain.storeAddress}</p>
+            ) : null}
+            {chain.purchaseCoords ? (
+              <p className="mt-1 font-mono text-xs text-zinc-500">
+                Purchase GPS {chain.purchaseCoords}
+              </p>
+            ) : null}
+            <p className="mt-1 text-xs text-zinc-500">
+              Purchased {new Date(chain.purchaseAt).toLocaleString()}
+            </p>
             <p className="mt-2 text-lg font-semibold text-zinc-900">
               ₹{chain.amount.toFixed(2)}
             </p>
