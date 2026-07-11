@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { DashboardNav } from "@/components/dashboard-nav";
+import { DashboardNav, CUSTOMER_NAV } from "@/components/dashboard-nav";
 import { redirect } from "next/navigation";
 
 export default async function MyRewardsPage() {
@@ -72,7 +72,7 @@ export default async function MyRewardsPage() {
           </p>
         </div>
 
-        <DashboardNav current="/rewards" />
+        <DashboardNav current="/rewards" links={CUSTOMER_NAV} />
 
         <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center">
           <p className="text-sm text-emerald-800">Total earned</p>
@@ -100,23 +100,11 @@ export default async function MyRewardsPage() {
                     </p>
                     <p className="mt-1 text-sm text-zinc-600">
                       Role: {reward.role}
-                      {tokenCode ? (
-                        <>
-                          {" "}
-                          · token{" "}
-                          <Link
-                            href={`/dashboard/tokens/${tokenCode}`}
-                            className="font-mono text-emerald-700 underline"
-                          >
-                            {tokenCode}
-                          </Link>
-                        </>
-                      ) : null}
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">
                       {new Date(reward.created_at).toLocaleString()}
                       {purchase
-                        ? ` · purchase ₹${Number(purchase.amount).toFixed(2)}`
+                        ? ` · related purchase ₹${Number(purchase.amount).toFixed(2)}`
                         : ""}
                     </p>
                   </div>

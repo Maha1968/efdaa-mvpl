@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { TOKEN_VALIDITY_HOURS } from "@/config/rewards";
 import { generateTokenCode } from "@/lib/utils/token-code";
+import { logReferralEvent } from "@/lib/actions/events";
 import { redirect } from "next/navigation";
 
 export type CreateTokenInput = {
@@ -136,7 +137,7 @@ export async function forwardToken(input: ForwardTokenInput) {
         claim_location_text: input.claimLocationText || null,
         expires_at: parent.expires_at,
       })
-      .select("code")
+      .select("id, code")
       .single();
 
     if (insertError) {
@@ -147,6 +148,18 @@ export async function forwardToken(input: ForwardTokenInput) {
       }
       return { error: insertError.message };
     }
+
+    await logReferralEvent({
+      tokenId: parent.id,
+      eventType: "claimed",
+      actorUserId: user.id,
+    });
+    await logReferralEvent({
+      tokenId: child.id,
+      eventType: "shared",
+      actorUserId: user.id,
+      meta: { parent_code: parent.code },
+    });
 
     return { code: child.code };
   }

@@ -7,6 +7,7 @@ import { computeGenuinenessScore } from "@/lib/purchases/genuineness";
 import { computeRewardSplit } from "@/lib/purchases/rewards";
 import { buildTokenChain } from "@/lib/purchases/chain";
 import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
+import { logReferralEvent } from "@/lib/actions/events";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Token } from "@/types/database";
@@ -81,6 +82,13 @@ export async function createPurchase(input: CreatePurchaseInput) {
   if (insertError) {
     return { error: insertError.message };
   }
+
+  await logReferralEvent({
+    tokenId: token.id,
+    eventType: "redeemed",
+    actorUserId: user.id,
+    meta: { purchase_id: purchase.id },
+  });
 
   revalidatePath(`/t/${input.tokenCode}`);
   revalidatePath(`/redeem/${input.tokenCode}`);

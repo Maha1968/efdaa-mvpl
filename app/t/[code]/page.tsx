@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TokenClaimFlow } from "@/components/token-claim-flow";
 import { isTokenExpired } from "@/lib/tokens/helpers";
 import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
+import { logReferralEvent } from "@/lib/actions/events";
 import { notFound } from "next/navigation";
 
 type PageProps = {
@@ -48,6 +49,12 @@ export default async function TokenLandingPage({ params }: PageProps) {
     .single();
 
   if (!token) notFound();
+
+  await logReferralEvent({
+    tokenId: token.id,
+    eventType: "opened",
+    actorUserId: user.id,
+  });
 
   if (isTokenExpired(token.expires_at)) {
     return (

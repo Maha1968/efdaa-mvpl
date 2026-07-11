@@ -1,14 +1,14 @@
 import Link from "next/link";
 
-const links = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/tokens", label: "Chains" },
-  { href: "/dashboard/purchases", label: "Purchases" },
-  { href: "/dashboard/leaderboard", label: "Leaderboard" },
-  { href: "/rewards", label: "My points" },
-];
+type NavLink = { href: string; label: string };
 
-export function DashboardNav({ current }: { current: string }) {
+export function DashboardNav({
+  current,
+  links,
+}: {
+  current: string;
+  links: NavLink[];
+}) {
   return (
     <nav className="mb-8 flex flex-wrap gap-2">
       {links.map((link) => {
@@ -30,3 +30,16 @@ export function DashboardNav({ current }: { current: string }) {
     </nav>
   );
 }
+
+export const CUSTOMER_NAV: NavLink[] = [
+  { href: "/dashboard", label: "My recommendations" },
+  { href: "/rewards", label: "My points" },
+];
+
+export const ADMIN_NAV: NavLink[] = [
+  { href: "/admin", label: "Overview" },
+  { href: "/admin/network", label: "Network" },
+  { href: "/admin/purchase-view", label: "Purchases" },
+  { href: "/admin/assist", label: "Referral Assist" },
+  { href: "/admin/purchases", label: "Validate" },
+];

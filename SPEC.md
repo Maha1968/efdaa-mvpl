@@ -288,6 +288,36 @@ genuineness_score (and why) and rewards paid; and a leaderboard of users by tota
 Clean and readable. This is the seed of the influence graph.
 ```
 
+### Stage 7A — Privacy-first Customer & Admin dashboards
+```
+Redesign dashboards with Privacy by Design. Use platform-generated User IDs everywhere in
+operational views — never show customer names, phones, emails, or other PII on dashboards.
+
+CUSTOMER DASHBOARD (recommendation creator):
+- Only products THEY personally recommended (their originator tokens).
+- Must NOT see: other people's tokens/codes, names, User IDs of recipients, individual paths.
+- Per product: recommendation date, campaign status (Active / Expired / Completed), total
+  purchases, total reward points, total reward value.
+- Referral performance by depth (1–5): purchases, reward points, reward value — aggregates only.
+
+ADMINISTRATOR DASHBOARD:
+- Full operational visibility using User IDs only (no PII).
+- Filters: date range, campaign/offer, product, Originator User ID, Customer User ID, referral
+  code, referral status.
+- Originator summary: User ID, product/campaign, date, opens, claims, forwards, purchases,
+  purchase value, reward points, reward value.
+- Network analytics by depth 1–5: referrals, opens, claims, forwards, purchases, values, rewards.
+- Graphical referral tree (Originator → L1…L5); each node shows User ID + activity counts.
+- Aggregate analytics: totals, conversion by depth, top originators/products/campaigns (by ID).
+- Customer Purchase View: buyer User ID, products, value, date, originating recommendation, and
+  downstream purchases/rewards by depth.
+- Referral Assist: look up any token code → lifecycle, antecedents (User IDs), descendants,
+  status, chronological timeline. No PII.
+
+Privacy: customers see only own recommendations + own rewards + depth aggregates.
+Admins see User IDs + referral structure + codes + analytics — never contactable PII.
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -304,6 +334,10 @@ Clean and readable. This is the seed of the influence graph.
       real distance or time gap = high; a wrong barcode, wrong store, out-of-window, OR
       same-place-and-same-minute chain = lower/zero. Rewards split correctly.
 - [ ] Stage 7: I can trace any full chain and see the leaderboard.
+- [ ] Stage 7A: Customer dashboard shows only my products + depth aggregates (no others' tokens
+      or identities). Admin dashboards use User IDs only (no names/phones/emails). Referral Assist
+      traces a code with antecedents/descendants/timeline. Purchase view shows cascading depth
+      impact without PII.
 
 ---
 
