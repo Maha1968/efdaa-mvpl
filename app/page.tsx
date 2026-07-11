@@ -43,9 +43,23 @@ export default async function Home() {
 
         <Link
           href="/create"
-          className="mb-6 flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
+          className="mb-3 flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
         >
           Create a token
+        </Link>
+
+        <Link
+          href="/dashboard"
+          className="mb-3 flex w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-3.5 text-base font-medium text-zinc-800 transition-colors hover:bg-zinc-50"
+        >
+          Dashboard
+        </Link>
+
+        <Link
+          href="/rewards"
+          className="mb-6 flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-base font-medium text-emerald-900 transition-colors hover:bg-emerald-100"
+        >
+          My EFDAA points
         </Link>
 
         <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
