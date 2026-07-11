@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
 import { buildTokenChain, chainPointsWithPurchase } from "@/lib/purchases/chain";
-import { computeHopDetails } from "@/lib/purchases/genuineness";
+import { computeHopDetails, computeOriginatorToBuyerClaimGap } from "@/lib/purchases/genuineness";
 import {
   BARCODE_MISS_MULTIPLIER,
   MIN_GENUINE_DISTANCE_METERS,
@@ -69,9 +69,11 @@ export default async function PurchaseResultPage({ params }: PageProps) {
   };
 
   const chain = await buildTokenChain(token as Token, fetchParent);
+  const scoring = computeOriginatorToBuyerClaimGap(chain);
   const hops = computeHopDetails(
     chainPointsWithPurchase(chain, purchase),
     chain.length,
+    scoring,
   );
 
   const rewardsWithNames = await Promise.all(
@@ -142,15 +144,19 @@ export default async function PurchaseResultPage({ params }: PageProps) {
           </div>
 
           <p className="mt-3 text-xs text-zinc-500">
-            Thresholds: near &lt;{MIN_GENUINE_DISTANCE_METERS}m and fast &lt;
-            {MIN_GENUINE_TIME_MINUTES} min → penalty ×{PROXIMITY_PENALTY_MULTIPLIER}
+            Scoring hop: originator claim ↔ buyer token claim. Penalty if both
+            near &lt;{MIN_GENUINE_DISTANCE_METERS}m and fast &lt;
+            {MIN_GENUINE_TIME_MINUTES} min → ×{PROXIMITY_PENALTY_MULTIPLIER}.
+            Intermediate shares do not change the score.
           </p>
         </section>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-zinc-900">Hop distances & times</h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Each hop between consecutive people in the chain (including buyer purchase).
+            Consecutive claims (and purchase) for context. The row marked
+            &quot;scores&quot; is originator ↔ buyer claim — the only proximity
+            input to genuineness.
           </p>
 
           {hops.length === 0 ? (
@@ -159,15 +165,18 @@ export default async function PurchaseResultPage({ params }: PageProps) {
             <ul className="mt-4 space-y-3">
               {hops.map((hop) => (
                 <li
-                  key={hop.index}
+                  key={`${hop.index}-${hop.toLabel}`}
                   className={`rounded-xl border px-4 py-3 text-sm ${
-                    hop.suspicious
-                      ? "border-amber-300 bg-amber-50"
+                    hop.scoresProximity
+                      ? hop.suspicious
+                        ? "border-amber-300 bg-amber-50"
+                        : "border-emerald-300 bg-emerald-50"
                       : "border-zinc-200 bg-zinc-50"
                   }`}
                 >
                   <p className="font-medium text-zinc-900">
-                    Hop {hop.index}: {hop.fromLabel} → {hop.toLabel}
+                    {hop.scoresProximity ? "Scoring hop" : `Hop ${hop.index}`}:{" "}
+                    {hop.fromLabel} → {hop.toLabel}
                   </p>
                   <p className="mt-1 text-zinc-600">
                     Distance:{" "}
@@ -185,7 +194,7 @@ export default async function PurchaseResultPage({ params }: PageProps) {
           )}
 
           <p className="mt-4 text-sm text-zinc-600">
-            Min hop distance: {purchase.min_hop_distance_m ?? "—"} m · Min hop time:{" "}
+            Originator ↔ buyer claim: {purchase.min_hop_distance_m ?? "—"} m ·{" "}
             {purchase.min_hop_time_minutes ?? "—"} min
           </p>
         </section>

@@ -9,6 +9,7 @@ import {
   MIN_GENUINE_TIME_MINUTES,
   ZERO_SCORE_FLOOR_REWARD_PCT,
 } from "@/config/rewards";
+import { STORE_MATCH_MAX_DISTANCE_M } from "@/lib/purchases/validation";
 
 export type DemoChainKind = "genuine" | "proximity" | "expired";
 
@@ -24,6 +25,7 @@ export type DemoHop = {
   distance_m: number | null;
   time_minutes: number | null;
   suspicious: boolean;
+  scoresProximity: boolean;
   label: string;
 };
 
@@ -242,11 +244,12 @@ async function loadOneChain(
       distance_m: h.distance_m,
       time_minutes: h.time_minutes,
       suspicious: h.suspicious,
+      scoresProximity: h.scoresProximity,
       label: `${dist} · ${time}`,
     };
   });
 
-  const suspiciousHop = genuineness.hops.find((h) => h.suspicious);
+  const suspiciousHop = genuineness.hops.find((h) => h.scoresProximity);
   const checks: DemoCheck[] = [
     {
       label: "Barcode match",
@@ -259,8 +262,8 @@ async function loadOneChain(
       label: "Correct store",
       pass: flags.store_match,
       detail: flags.store_match
-        ? "Purchase at a partner store in range"
-        : "Store check failed",
+        ? `Purchase GPS within ${STORE_MATCH_MAX_DISTANCE_M}m of the selected partner store`
+        : `Purchase GPS was farther than ${STORE_MATCH_MAX_DISTANCE_M}m from the selected partner store`,
     },
     {
       label: "Within validity window",
@@ -270,14 +273,14 @@ async function loadOneChain(
         : "Purchase after the originator's 24h window",
     },
     {
-      label: "Proximity–time check",
+      label: "Proximity–time (originator ↔ buyer claim)",
       pass: !genuineness.proximityPenaltyApplied,
       detail: genuineness.proximityPenaltyApplied
-        ? `Flagged: a hop was under ${MIN_GENUINE_DISTANCE_METERS}m and under ${MIN_GENUINE_TIME_MINUTES} min` +
+        ? `Flagged: buyer claimed within ${MIN_GENUINE_DISTANCE_METERS}m and ${MIN_GENUINE_TIME_MINUTES} min of the originator` +
           (suspiciousHop?.distance_m != null
             ? ` (${Math.round(suspiciousHop.distance_m)}m, ${suspiciousHop.time_minutes?.toFixed(0)} min)`
             : "")
-        : `Cleared: no hop was both <${MIN_GENUINE_DISTANCE_METERS}m and <${MIN_GENUINE_TIME_MINUTES} min`,
+        : `Cleared: buyer claim was not both <${MIN_GENUINE_DISTANCE_METERS}m and <${MIN_GENUINE_TIME_MINUTES} min from the originator`,
     },
   ];
 

@@ -26,10 +26,10 @@ export const BARCODE_MISS_MULTIPLIER = 0.5;
 export const STORE_MISS_MULTIPLIER = 0.7;
 export const PROXIMITY_PENALTY_MULTIPLIER = 0.4;
 
-/** Anti-collusion thresholds: a hop that is BOTH nearer than this AND faster than the
- *  time threshold looks like gaming and triggers the proximity penalty. */
-export const MIN_GENUINE_DISTANCE_METERS = 50;
-export const MIN_GENUINE_TIME_MINUTES = 30;
+/** Anti-collusion: originator claim ↔ purchaser token claim. Penalty if BOTH
+ *  nearer than this AND faster than the time threshold. */
+export const MIN_GENUINE_DISTANCE_METERS = 1000;
+export const MIN_GENUINE_TIME_MINUTES = 60;
 
 /** Reward split weights by role. The ends of the chain earn the most. */
 export const ROLE_WEIGHTS = {

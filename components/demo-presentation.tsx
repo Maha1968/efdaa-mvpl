@@ -104,19 +104,31 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
                 </p>
               </div>
               {i < chain.hops.length && (
-                <div
+                  <div
                   className={`my-2 flex items-center gap-3 px-2 ${
-                    chain.hops[i].suspicious ? "text-amber-800" : "text-zinc-700"
+                    chain.hops[i].scoresProximity
+                      ? chain.hops[i].suspicious
+                        ? "text-amber-800"
+                        : "text-emerald-800"
+                      : chain.hops[i].suspicious
+                        ? "text-amber-800"
+                        : "text-zinc-700"
                   }`}
                 >
                   <div
                     className={`h-8 w-0.5 shrink-0 ${
-                      chain.hops[i].suspicious ? "bg-amber-400" : "bg-zinc-300"
+                      chain.hops[i].scoresProximity
+                        ? chain.hops[i].suspicious
+                          ? "bg-amber-400"
+                          : "bg-emerald-500"
+                        : "bg-zinc-300"
                     }`}
                   />
                   <div className="min-w-0 flex-1 rounded-xl border border-dashed border-zinc-300 bg-white px-3 py-2">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                      Hop {i + 1}
+                      {chain.hops[i].scoresProximity
+                        ? "Scores genuineness"
+                        : `Hop ${i + 1}`}
                       {chain.hops[i].suspicious ? " · flagged" : ""}
                     </p>
                     <p
@@ -124,6 +136,11 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
                     >
                       {chain.hops[i].label}
                     </p>
+                    {chain.hops[i].scoresProximity ? (
+                      <p className="mt-1 text-xs text-zinc-600">
+                        Originator claim → buyer claim
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               )}

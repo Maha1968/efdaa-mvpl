@@ -25,10 +25,9 @@ const PLACEHOLDER_BARCODE =
 const PLACEHOLDER_RECEIPT =
   "https://placehold.co/600x900/png?text=Demo+Receipt";
 
-/** Bengaluru places — kilometres apart for genuine hops. */
+/** Bengaluru places for claim hops — kilometres apart (not the partner store). */
 const PLACES = [
   { lat: 12.99705, lng: 77.69645, text: "Phoenix Marketcity, Whitefield" },
-  { lat: 12.93522, lng: 77.62448, text: "Koramangala 5th Block" },
   { lat: 12.97842, lng: 77.64082, text: "Indiranagar 100 Feet Road" },
   { lat: 12.9304, lng: 77.5838, text: "Jayanagar 4th Block" },
   { lat: 12.9121, lng: 77.6446, text: "HSR Layout Sector 2" },
@@ -41,10 +40,18 @@ const PLACES = [
   { lat: 13.1005, lng: 77.5963, text: "Yelahanka" },
   { lat: 12.9166, lng: 77.6101, text: "BTM Layout" },
   { lat: 12.9718, lng: 77.6412, text: "Domlur" },
-  { lat: 12.97855, lng: 77.64095, text: "EFDAA Partner Store, Indiranagar" },
 ] as const;
 
-const STORE = PLACES[PLACES.length - 1];
+/**
+ * Partner store where recommendations originate and purchases redeem.
+ * store_match (production + demo) = purchase GPS within 500m of this store.
+ */
+const STORE = {
+  lat: 12.93522,
+  lng: 77.62448,
+  text: "EFDAA Partner Store, Koramangala",
+} as const;
+
 const PROX_A = { lat: 12.9716, lng: 77.5946, text: "Near MG Road" };
 const PROX_B = { lat: 12.97169, lng: 77.5946, text: "Near MG Road (~10m away)" };
 
@@ -447,7 +454,8 @@ async function growDepth4Tree(input: {
     productId: product.id,
     offerId,
     barcode: product.barcode,
-    place: nextPlace(),
+    // Originator recommends at the partner store; later hops may claim elsewhere.
+    place: STORE,
     at: t0,
     expiresAt,
     shared: true,
@@ -633,7 +641,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
   const { data: store, error: storeError } = await admin
     .from("stores")
     .insert({
-      name: "EFDAA Partner Store Indiranagar",
+      name: "EFDAA Partner Store Koramangala",
       address: `${STORE.text}, Bengaluru`,
       lat: STORE.lat,
       lng: STORE.lng,
@@ -717,7 +725,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      place: placeAt(placeCounter.n++),
+      place: STORE,
       at: t0,
       expiresAt,
       shared: true,
@@ -832,7 +840,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
       productId: product.id,
       offerId: offer.id,
       barcode: product.barcode,
-      place: placeAt(placeCounter.n++),
+      place: STORE,
       at: t0,
       expiresAt,
       shared: true,

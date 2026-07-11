@@ -1,9 +1,6 @@
 import type { Product, Purchase, Store, Token } from "@/types/database";
-import {
-  buildTokenChain,
-  chainPointsWithPurchase,
-  computeMinHopStats,
-} from "@/lib/purchases/chain";
+import { buildTokenChain } from "@/lib/purchases/chain";
+import { computeOriginatorToBuyerClaimGap } from "@/lib/purchases/genuineness";
 import { haversineMeters } from "@/lib/geo/haversine";
 
 /** Max distance (metres) from store GPS for store_match in the pilot. */
@@ -66,16 +63,15 @@ export async function computePurchaseSignalFlags(input: {
       ) <= STORE_MATCH_MAX_DISTANCE_M;
   }
 
-  const hopStats = computeMinHopStats(
-    chainPointsWithPurchase(chain, purchase),
-  );
+  // Stored hop stats = scoring gap (originator claim ↔ buyer token claim).
+  const scoringGap = computeOriginatorToBuyerClaimGap(chain);
 
   return {
     barcode_match,
     store_match,
     within_window,
     time_to_purchase_hours: timeToPurchaseHours,
-    min_hop_distance_m: hopStats.min_hop_distance_m,
-    min_hop_time_minutes: hopStats.min_hop_time_minutes,
+    min_hop_distance_m: scoringGap.distance_m,
+    min_hop_time_minutes: scoringGap.time_minutes,
   };
 }

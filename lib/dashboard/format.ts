@@ -41,10 +41,10 @@ export function explainGenuineness(purchase: Purchase): string[] {
 
   if (near && fast) {
     reasons.push(
-      `Proximity-time penalty × ${PROXIMITY_PENALTY_MULTIPLIER} (min hop ${purchase.min_hop_distance_m}m / ${purchase.min_hop_time_minutes} min)`,
+      `Proximity-time penalty × ${PROXIMITY_PENALTY_MULTIPLIER} (originator ↔ buyer claim ${purchase.min_hop_distance_m}m / ${purchase.min_hop_time_minutes} min)`,
     );
   } else {
-    reasons.push("No proximity-time penalty");
+    reasons.push("No proximity-time penalty (originator ↔ buyer claim cleared)");
   }
 
   reasons.push(`Final score: ${Number(purchase.genuineness_score ?? 0).toFixed(3)}`);

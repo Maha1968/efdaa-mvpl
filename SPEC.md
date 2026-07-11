@@ -133,14 +133,14 @@ that look self-dealing. Start at `1.0`, then apply these configurable adjustment
   the zero-score floor — see Step B).
 - If `barcode_match` is **false** → × `BARCODE_MISS_MULTIPLIER` (0.5).
 - If `store_match` is **false** → × `STORE_MISS_MULTIPLIER` (0.7).
-- **Proximity-time check (anti-collusion):** for each hop in the chain (originator → next →
-  … → buyer), compute the distance in metres and the time gap in minutes between the two people,
-  using their captured `claim_lat/lng` + `created_at` (and the buyer's purchase location/time).
-  If ANY hop is **both** too near (`distance < MIN_GENUINE_DISTANCE_METERS`) **and** too fast
-  (`gap < MIN_GENUINE_TIME_MINUTES`), it looks like one person with two phones or two people
-  standing together gaming the system → × `PROXIMITY_PENALTY_MULTIPLIER` (0.4). The penalty is
-  applied once, even if several hops look suspicious. Being far apart **or** having a real time
-  gap is enough to pass — genuine influence usually shows at least one of the two.
+- **Proximity-time check (anti-collusion):** Intermediate shares may be tracked for display
+  (consecutive claim places/times), but they do **not** change the score. The score uses **one**
+  comparison only: **originator claim** ↔ **purchaser’s token claim** (the redeemed token’s
+  `claim_lat/lng` + `created_at` vs the originator’s). If that pair is **both** too near
+  (`distance < MIN_GENUINE_DISTANCE_METERS`, default **1000**) **and** too fast
+  (`gap < MIN_GENUINE_TIME_MINUTES`, default **60**), apply × `PROXIMITY_PENALTY_MULTIPLIER` (0.4)
+  once. Far apart **or** enough time clears the check. Purchase GPS is for `store_match`, not
+  this penalty; buyers may claim elsewhere and later buy at the partner store within the window.
 
 Distance uses the Haversine formula on two lat/lng points (Cursor knows it). No maps service is
 needed — only the coordinates and timestamps already captured.
@@ -163,8 +163,8 @@ When a purchase is marked **validated**:
 - `TOKEN_VALIDITY_HOURS` = 24
 - `BARCODE_MISS_MULTIPLIER` = 0.5
 - `STORE_MISS_MULTIPLIER` = 0.7
-- `MIN_GENUINE_DISTANCE_METERS` = 50
-- `MIN_GENUINE_TIME_MINUTES` = 30
+- `MIN_GENUINE_DISTANCE_METERS` = 1000
+- `MIN_GENUINE_TIME_MINUTES` = 60
 - `PROXIMITY_PENALTY_MULTIPLIER` = 0.4
 - reward weights: `buyer 4, last_referrer 3, originator 2, forwarder 1`
 - `base_reward_pct` (also stored per offer)
@@ -283,9 +283,9 @@ within_window) and the min hop distance/time across the chain before running rew
 When a purchase is set to 'validated', follow SPEC.md Section 4 exactly:
 A) Compute genuineness_score: if within_window is false, score = 0; else start at 1.0, then
    × BARCODE_MISS_MULTIPLIER if barcode doesn't match, × STORE_MISS_MULTIPLIER if store doesn't
-   match, and × PROXIMITY_PENALTY_MULTIPLIER if ANY hop between consecutive people in the chain is
-   BOTH closer than MIN_GENUINE_DISTANCE_METERS AND faster than MIN_GENUINE_TIME_MINUTES (use the
-   Haversine distance on their claim/purchase coordinates and the time between their timestamps).
+   match, and × PROXIMITY_PENALTY_MULTIPLIER if originator claim ↔ buyer token claim is BOTH
+   closer than MIN_GENUINE_DISTANCE_METERS AND faster than MIN_GENUINE_TIME_MINUTES (Haversine on
+   claim coordinates; intermediate shares do not affect the score). Purchase GPS is for store_match.
 B) base_pool = amount × offer.base_reward_pct × genuineness_score.
 C) Walk the chain to the root (recursive query), assign roles (buyer, last_referrer, originator,
    forwarder), and split base_pool by weights (buyer 4, last_referrer 3, originator 2, forwarder 1).
@@ -390,7 +390,9 @@ HARD RULES FOR THE SEED
   purchases (applyPurchaseValidation). Do NOT hard-code genuineness scores or reward amounts.
 - Privacy-by-Design: seeded people shown by platform User ID only on admin views.
 - Respect max depth 4, TOKEN_VALIDITY_HOURS, and expires_at inheritance from originator.
-- Realistic Bengaluru coordinates, multiple demo products, one partner store, placeholder images.
+- Realistic Bengaluru coordinates, multiple demo products, one partner store
+  (originator recommends at that store; recipients may claim anywhere; purchases redeem at
+  that same store GPS — same store_match rule as production), placeholder images.
 
 SEED SHAPE (Vercel-safe compact fanouts)
 - Branching depth-4 trees: parent → child → grandchild → great-grandchild.
