@@ -60,14 +60,20 @@ export function LocationCapture({
         type="button"
         onClick={captureLocation}
         disabled={locating}
-        className="mt-3 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-60"
+        className="mt-3 min-h-12 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3.5 text-base font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-60"
       >
         {locating
-          ? "Getting location..."
+          ? "Getting location…"
           : coords
             ? "Update location"
             : "Capture my location"}
       </button>
+
+      {locating && (
+        <p className="mt-2 text-sm text-zinc-600">
+          Waiting for GPS — allow location when your browser asks.
+        </p>
+      )}
 
       {coords && (
         <p className="mt-2 text-xs text-emerald-700">

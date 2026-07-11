@@ -214,7 +214,7 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-emerald-700 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
+              className="min-h-12 w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
             >
               {loading
                 ? "Please wait..."

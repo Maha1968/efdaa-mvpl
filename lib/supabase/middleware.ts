@@ -52,8 +52,9 @@ export async function updateSession(request: NextRequest) {
   const isLoginPage = pathname.startsWith("/login");
   const isAuthRoute = pathname.startsWith("/auth");
   const isPublicTokenLink = pathname.startsWith("/t/");
+  const isDemoPage = pathname === "/demo" || pathname.startsWith("/demo/");
 
-  if (!user && !isLoginPage && !isAuthRoute && !isPublicTokenLink) {
+  if (!user && !isLoginPage && !isAuthRoute && !isPublicTokenLink && !isDemoPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

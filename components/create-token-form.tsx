@@ -127,13 +127,17 @@ export function CreateTokenForm({
         setSubmitting(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(
+        err instanceof Error
+          ? `Upload or create failed: ${err.message}`
+          : "Upload or create failed. Check your connection and try again.",
+      );
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 pb-28">
       <div>
         <label htmlFor="product" className="mb-1.5 block text-sm font-medium text-zinc-700">
           Product
@@ -142,7 +146,7 @@ export function CreateTokenForm({
           id="product"
           value={productId}
           onChange={(e) => handleProductChange(e.target.value)}
-          className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         >
           {products.map((product) => (
             <option key={product.id} value={product.id}>
@@ -160,7 +164,7 @@ export function CreateTokenForm({
           id="offer"
           value={offerId}
           onChange={(e) => setOfferId(e.target.value)}
-          className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         >
           {offers.map((offer) => (
             <option key={offer.id} value={offer.id}>
@@ -197,13 +201,13 @@ export function CreateTokenForm({
           value={barcode}
           onChange={(e) => setBarcode(e.target.value)}
           placeholder="e.g. 8901234567890"
-          className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-4">
         <p className="text-sm font-medium text-zinc-700">Your location</p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-500">
           We capture GPS coordinates when you create a token — no maps service needed.
         </p>
 
@@ -211,17 +215,23 @@ export function CreateTokenForm({
           type="button"
           onClick={captureLocation}
           disabled={locating}
-          className="mt-3 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-60"
+          className="mt-3 min-h-12 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3.5 text-base font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-60"
         >
           {locating
-            ? "Getting location..."
+            ? "Getting location…"
             : coords
               ? "Update location"
               : "Capture my location"}
         </button>
 
+        {locating && (
+          <p className="mt-2 text-sm text-zinc-600">
+            Waiting for GPS — allow location when your browser asks.
+          </p>
+        )}
+
         {coords && (
-          <p className="mt-2 text-xs text-emerald-700">
+          <p className="mt-2 text-sm text-emerald-700">
             Location captured: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
           </p>
         )}
@@ -239,7 +249,7 @@ export function CreateTokenForm({
             value={locationText}
             onChange={(e) => setLocationText(e.target.value)}
             placeholder='e.g. "Phoenix Mall"'
-            className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
           />
         </div>
       </div>
@@ -250,13 +260,15 @@ export function CreateTokenForm({
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
-      >
-        {submitting ? "Creating token..." : "Create token"}
-      </button>
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
+        >
+          {submitting ? "Creating token…" : "Create token"}
+        </button>
+      </div>
     </form>
   );
 }

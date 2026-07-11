@@ -17,7 +17,7 @@ export function ShareOnWhatsApp({ code, productName }: ShareOnWhatsAppProps) {
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-[#1fb855]"
+      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-[#1fb855]"
     >
       Share on WhatsApp
     </a>

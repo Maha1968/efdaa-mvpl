@@ -444,6 +444,31 @@ they originated. Never genuineness/fraud internals. Friendly empty states per se
 Verify with Stage 7E demo login: demo_user@efdaa.com / demo_user (DEMOT1A originator).
 ```
 
+### Stage 7G — Presentation-quality /demo page + mobile polish
+```
+Build a public, read-only /demo page for retailers/investors (no login). It shows ONLY Stage 7E
+is_demo seeded chains — never real customer data. No hard-coded scores or rewards; read from DB
+(and recompute hop evidence from stored claim/purchase locations). Use service-role server reads.
+
+TOP: thesis headline (offline word-of-mouth, made measurable), three live stat tiles (chains,
+purchases, rewards), framing line for the three-way contrast.
+
+MAIN: three columns on wide screens (stack on mobile) —
+  Chain A Genuine (DEMOGEN0), Chain B Suspicious proximity (DEMOPRX0), Chain C Out of window
+  (DEMOEXP0). Each shows: role-labelled nodes + User IDs + place/time; hop distance & time between
+  nodes; purchase (product, barcode, store, amount, receipt); large colour-coded genuineness score;
+  plain-English pass/fail checks; reward pool and role split. Explicit copy that expired chains
+  keep a full attribution record and still pay the floor.
+
+CLOSING: every rupee traces to one validated transaction; every purchase traces to who caused it.
+
+Design: presentation-grade, large type, generous whitespace, hops + scores as heroes.
+
+MOBILE: polish /demo, /rewards, /t claim, /create, /redeem, /efdaagifts, /login for 375px —
+no horizontal scroll, thumb-sized sticky primary actions, clear location/upload errors, no
+hover-only info. Seed adds short DEMOGEN* chain for Chain A contrast.
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -476,6 +501,9 @@ Verify with Stage 7E demo login: demo_user@efdaa.com / demo_user (DEMOT1A origin
 - [ ] Stage 7F: /rewards shows lifetime points + Originator/Forwarder/Buyer cards and sections;
       originator expand has level aggregates only (no PII/codes); forwarder/buyer lists privacy-safe;
       Buy using EFDAA points still links to /efdaagifts; admins redirected away.
+- [ ] Stage 7G: Public /demo shows Genuine / Proximity / Expired columns from seeded data only;
+      scores+rewards live from DB; mobile stack works at 375px; claim/create/redeem sticky CTAs;
+      location/upload errors visible. After Load, open /demo without logging in.
 
 ---
 

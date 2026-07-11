@@ -17,20 +17,20 @@ export default async function EfdaaGiftsPage() {
   if (await isAdminUser()) redirect("/admin");
 
   return (
-    <main className="flex flex-1 flex-col px-6 py-10">
+    <main className="flex flex-1 flex-col px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto w-full max-w-2xl">
         <Link href="/rewards" className="text-sm text-emerald-700 underline">
           ← Back to EFDAA points
         </Link>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-700 to-emerald-900 px-6 py-16 text-center shadow-sm">
+        <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-700 to-emerald-900 px-5 py-12 text-center shadow-sm sm:px-6 sm:py-16">
           <p className="text-sm font-medium uppercase tracking-[0.2em] text-emerald-200">
             Coming soon
           </p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl">
+          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-5xl">
             EFDAAgifts
           </h1>
-          <p className="mx-auto mt-4 max-w-md text-base text-emerald-100">
+          <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-emerald-100">
             Spend your EFDAA points on gifts and items here. Catalog and checkout
             will be added in a later stage.
           </p>

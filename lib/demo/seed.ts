@@ -702,6 +702,71 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
     reports.push(...grown.reports);
   }
 
+  // Chain A — short genuine path for /demo (km hops, hours apart)
+  {
+    const product = productByKey.tea;
+    const t0 = hoursAgo(18);
+    const expiresAt = hoursAfter(t0, TOKEN_VALIDITY_HOURS);
+    const A = await createTokenNode({
+      admin,
+      code: "DEMOGEN0",
+      holderUserId: await ensureDemoCustomer(admin, "gena", emailCache),
+      parent: null,
+      rootId: null,
+      depth: 0,
+      productId: product.id,
+      offerId: offer.id,
+      barcode: product.barcode,
+      place: placeAt(placeCounter.n++),
+      at: t0,
+      expiresAt,
+      shared: true,
+    });
+    const B = await createTokenNode({
+      admin,
+      code: "DEMOGEN1",
+      holderUserId: await ensureDemoCustomer(admin, "genb", emailCache),
+      parent: A,
+      rootId: A.id,
+      depth: 1,
+      productId: product.id,
+      offerId: offer.id,
+      barcode: product.barcode,
+      place: placeAt(placeCounter.n++),
+      at: hoursAfter(t0, 3),
+      expiresAt,
+      shared: true,
+    });
+    const C = await createTokenNode({
+      admin,
+      code: "DEMOGEN2",
+      holderUserId: await ensureDemoCustomer(admin, "genc", emailCache),
+      parent: B,
+      rootId: A.id,
+      depth: 2,
+      productId: product.id,
+      offerId: offer.id,
+      barcode: product.barcode,
+      place: placeAt(placeCounter.n++),
+      at: hoursAfter(t0, 8),
+      expiresAt,
+    });
+    rootCodes.push(A.code);
+    tokenCount += 3;
+    reports.push(
+      await validateLeafPurchase({
+        admin,
+        label: "Genuine chain (tea)",
+        leaf: C,
+        storeId: store.id,
+        barcode: product.barcode,
+        amount: product.price,
+        at: hoursAfter(t0, 12),
+        codes: [A.code, B.code, C.code],
+      }),
+    );
+  }
+
   // Proximity contrast (short)
   {
     const product = productByKey.honey;

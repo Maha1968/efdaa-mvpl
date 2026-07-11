@@ -54,8 +54,8 @@ export function TokenClaimFlow({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <div className="space-y-6 pb-28">
+      <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
         <p className="text-sm font-medium text-zinc-500">Product</p>
         <p className="mt-1 text-lg font-semibold text-zinc-900">
           {token.product?.name ?? "Unknown product"}
@@ -69,7 +69,7 @@ export function TokenClaimFlow({
             purchase
           </p>
         )}
-        <p className="mt-4 text-xs text-zinc-500">
+        <p className="mt-4 text-sm text-zinc-500">
           Expires {new Date(token.expires_at).toLocaleString()}
         </p>
       </div>
@@ -92,24 +92,13 @@ export function TokenClaimFlow({
       </div>
 
       {shareAllowed && (
-        <>
-          <LocationCapture
-            coords={coords}
-            onCoordsChange={setCoords}
-            locationText={locationText}
-            onLocationTextChange={setLocationText}
-            onError={setError}
-          />
-
-          <button
-            type="button"
-            onClick={handleShare}
-            disabled={loading}
-            className="w-full rounded-xl border border-emerald-700 bg-white px-4 py-3.5 text-base font-medium text-emerald-800 transition-colors hover:bg-emerald-50 disabled:opacity-60"
-          >
-            {loading ? "Creating link..." : "Share"}
-          </button>
-        </>
+        <LocationCapture
+          coords={coords}
+          onCoordsChange={setCoords}
+          locationText={locationText}
+          onLocationTextChange={setLocationText}
+          onError={setError}
+        />
       )}
 
       {!shareAllowed && (
@@ -119,24 +108,38 @@ export function TokenClaimFlow({
         </p>
       )}
 
-      {!alreadyRedeemed ? (
-        <Link
-          href={`/redeem/${token.code}`}
-          className="flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
-        >
-          Redeem
-        </Link>
-      ) : (
-        <p className="text-center text-sm text-zinc-500">
-          Redeem is no longer available for this token.
-        </p>
-      )}
-
       {error && (
         <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </p>
       )}
+
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <div className="mx-auto flex max-w-lg flex-col gap-2 sm:gap-3">
+          {shareAllowed && (
+            <button
+              type="button"
+              onClick={handleShare}
+              disabled={loading}
+              className="min-h-12 w-full rounded-xl border border-emerald-700 bg-white px-4 py-3.5 text-base font-medium text-emerald-800 transition-colors hover:bg-emerald-50 disabled:opacity-60"
+            >
+              {loading ? "Creating link…" : "Share"}
+            </button>
+          )}
+          {!alreadyRedeemed ? (
+            <Link
+              href={`/redeem/${token.code}`}
+              className="flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
+            >
+              Redeem
+            </Link>
+          ) : (
+            <p className="py-2 text-center text-sm text-zinc-500">
+              Redeem is no longer available for this token.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -25,7 +25,7 @@ export function PhotoUpload({
       <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-zinc-700">
         {label}
       </label>
-      {hint && <p className="mb-2 text-xs text-zinc-500">{hint}</p>}
+      {hint && <p className="mb-2 text-sm text-zinc-500">{hint}</p>}
 
       <input
         ref={inputRef}
@@ -43,20 +43,20 @@ export function PhotoUpload({
           <img
             src={previewUrl}
             alt={`${label} preview`}
-            className="h-40 w-full rounded-xl border border-zinc-200 object-cover"
+            className="h-44 w-full rounded-xl border border-zinc-200 object-cover"
           />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700"
+              className="min-h-12 rounded-xl border border-zinc-300 px-4 py-3 text-base font-medium text-zinc-700"
             >
               Retake
             </button>
             <button
               type="button"
               onClick={() => onChange(null)}
-              className="rounded-xl border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-700"
+              className="min-h-12 rounded-xl border border-zinc-300 px-4 py-3 text-base font-medium text-zinc-700"
             >
               Remove
             </button>
@@ -66,11 +66,13 @@ export function PhotoUpload({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
+          className="flex min-h-[7.5rem] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center transition-colors active:border-emerald-500 hover:border-emerald-400 hover:bg-emerald-50/50"
         >
-          <span className="text-2xl">📷</span>
-          <span className="mt-2 text-sm font-medium text-zinc-700">
-            Tap to take or upload a photo
+          <span className="text-base font-semibold text-zinc-800">
+            Take or upload photo
+          </span>
+          <span className="mt-1 text-sm text-zinc-500">
+            Opens camera on your phone
           </span>
         </button>
       )}

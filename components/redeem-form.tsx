@@ -97,13 +97,17 @@ export function RedeemForm({
         setLoading(false);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setError(
+        err instanceof Error
+          ? `Upload or submit failed: ${err.message}`
+          : "Upload or submit failed. Check your connection and try again.",
+      );
       setLoading(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6 pb-28">
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <p className="text-sm font-medium text-zinc-500">Product</p>
         <p className="mt-1 text-lg font-semibold text-zinc-900">{product.name}</p>
@@ -118,7 +122,7 @@ export function RedeemForm({
           id="store"
           value={storeId}
           onChange={(e) => setStoreId(e.target.value)}
-          className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         >
           {stores.map((store) => (
             <option key={store.id} value={store.id}>
@@ -150,7 +154,7 @@ export function RedeemForm({
           required
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
@@ -168,7 +172,7 @@ export function RedeemForm({
           required
           value={receiptBarcode}
           onChange={(e) => setReceiptBarcode(e.target.value)}
-          className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
@@ -186,13 +190,15 @@ export function RedeemForm({
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
-      >
-        {loading ? "Submitting..." : "Submit purchase"}
-      </button>
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <button
+          type="submit"
+          disabled={loading}
+          className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
+        >
+          {loading ? "Submitting…" : "Submit purchase"}
+        </button>
+      </div>
     </form>
   );
 }

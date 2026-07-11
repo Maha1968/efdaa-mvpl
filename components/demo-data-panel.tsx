@@ -80,9 +80,10 @@ export function DemoDataPanel() {
         great-grandchild). Roots:{" "}
         <span className="font-mono">DEMOT1A</span>,{" "}
         <span className="font-mono">DEMOT2A</span>,{" "}
-        <span className="font-mono">DEMOT3A</span>. Load may take up to a
-        minute. Then open Network or Referral Assist. Customer login for{" "}
-        <span className="font-mono">DEMOT1A</span> originator:{" "}
+        <span className="font-mono">DEMOT3A</span>. Also seeds DEMOGEN0 / DEMOPRX0 /
+        DEMOEXP0 for the public <span className="font-mono">/demo</span> page. Load
+        may take up to a minute. Then open Network, Referral Assist, or /demo.
+        Customer login for <span className="font-mono">DEMOT1A</span> originator:{" "}
         <span className="font-mono">demo_user@efdaa.com</span> /{" "}
         <span className="font-mono">demo_user</span>.
       </p>
