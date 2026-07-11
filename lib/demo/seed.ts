@@ -13,7 +13,7 @@ export const DEMO_EMAIL_DOMAIN = "efdaa.demo";
  */
 export const DEMO_LOGIN = {
   key: "t1a",
-  email: "demo_user@gmail.com",
+  email: "demo_user@efdaa.com",
   password: "demo_user",
   name: "Demo User",
 } as const;

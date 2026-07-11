@@ -412,7 +412,7 @@ ADMIN UI ADDITIONS FOR THE DEMO
   "deeper than this buyer" is empty for depth-4 leaves); plus rewards from this purchase by
   recipient depth.
 - Overview Opens metric depends on referral_events; after creating the table, Reset + Load again.
-- Convenience customer login for DEMOT1A originator: demo_user@gmail.com / demo_user
+- Convenience customer login for DEMOT1A originator: demo_user@efdaa.com / demo_user
   (other seed people remain on @efdaa.demo).
 ```
 
@@ -441,7 +441,7 @@ points.
 
 PRIVACY: only own recommendations, forwards, purchases, points, and depth aggregates for chains
 they originated. Never genuineness/fraud internals. Friendly empty states per section.
-Verify with Stage 7E demo login: demo_user@gmail.com / demo_user (DEMOT1A originator).
+Verify with Stage 7E demo login: demo_user@efdaa.com / demo_user (DEMOT1A originator).
 ```
 
 ---
