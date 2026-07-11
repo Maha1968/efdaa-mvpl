@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { CreateTokenForm } from "@/components/create-token-form";
+import { getAppRole } from "@/lib/auth/admin";
 import { redirect } from "next/navigation";
 
 export default async function CreateTokenPage() {
@@ -10,6 +11,9 @@ export default async function CreateTokenPage() {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+
+  const role = await getAppRole();
+  if (role === "admin") redirect("/admin");
 
   const [{ data: products }, { data: offers }] = await Promise.all([
     supabase.from("products").select("*").order("name"),

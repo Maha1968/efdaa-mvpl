@@ -64,7 +64,12 @@ Copy this into Cursor as-is.
 
 ### Tables
 
-**users** — `id`, `name`, `phone`, `created_at`
+**users** — `id`, `name`, `phone`, `role` (`customer` | `admin` | null until first login), `created_at`
+
+Roles are **permanent**: assigned once on first login (`ADMIN_EMAIL` → admin, otherwise customer).
+A customer can never become an administrator later, and an administrator can never become a
+customer. Administrators only use the admin dashboard — they cannot create/share/redeem tokens
+or earn points. Only customers see recommendations, points, and the create-token flow.
 
 **products** — `id`, `name`, `price`, `barcode` (canonical barcode/SKU to match receipts against)
 
@@ -318,6 +323,21 @@ Privacy: customers see only own recommendations + own rewards + depth aggregates
 Admins see User IDs + referral structure + codes + analytics — never contactable PII.
 ```
 
+### Stage 7B — Permanent admin vs customer separation
+```
+Administrators cannot recommend products or own/earn points. An administrator account only
+sees the administrator dashboard (and an admin home that links there).
+
+Only non-administrators (customers) can create tokens, claim/share/redeem, see My
+recommendations, and see My EFDAA points.
+
+Roles are permanent and mutually exclusive:
+- Once someone is a customer they cannot later be made an administrator.
+- Once someone is an administrator they cannot later be made a customer.
+Role is assigned once on first login (ADMIN_EMAIL → admin; all others → customer) and locked
+in the database (immutable after set). Use a separate login for admin vs customer testing.
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -338,6 +358,8 @@ Admins see User IDs + referral structure + codes + analytics — never contactab
       or identities). Admin dashboards use User IDs only (no names/phones/emails). Referral Assist
       traces a code with antecedents/descendants/timeline. Purchase view shows cascading depth
       impact without PII.
+- [ ] Stage 7B: Admin cannot open /create, /dashboard, /rewards, claim, or redeem. Customer cannot
+      open /admin. Role cannot be flipped after first assignment. Admin earns no reward points.
 
 ---
 

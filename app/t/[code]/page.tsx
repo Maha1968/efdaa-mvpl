@@ -4,7 +4,8 @@ import { TokenClaimFlow } from "@/components/token-claim-flow";
 import { isTokenExpired } from "@/lib/tokens/helpers";
 import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
 import { logReferralEvent } from "@/lib/actions/events";
-import { notFound } from "next/navigation";
+import { isAdminUser } from "@/lib/auth/admin";
+import { notFound, redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ code: string }>;
@@ -41,6 +42,8 @@ export default async function TokenLandingPage({ params }: PageProps) {
       </main>
     );
   }
+
+  if (await isAdminUser()) redirect("/admin");
 
   const { data: token } = await supabase
     .from("tokens")

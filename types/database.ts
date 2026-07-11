@@ -14,6 +14,8 @@ export interface User {
   id: string;
   name: string;
   phone: string | null;
+  /** Permanent: set once; cannot switch between customer and admin. */
+  role: "customer" | "admin" | null;
   created_at: string;
 }
 

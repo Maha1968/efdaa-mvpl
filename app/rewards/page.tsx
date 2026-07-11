@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { DashboardNav, CUSTOMER_NAV } from "@/components/dashboard-nav";
+import { isAdminUser } from "@/lib/auth/admin";
 import { redirect } from "next/navigation";
 
 export default async function MyRewardsPage() {
@@ -9,6 +10,8 @@ export default async function MyRewardsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/rewards");
+
+  if (await isAdminUser()) redirect("/admin");
 
   const { data: rewards } = await supabase
     .from("rewards")

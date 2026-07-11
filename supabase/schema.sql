@@ -18,10 +18,12 @@ drop table if exists public.users cascade;
 -- ---------------------------------------------------------------------------
 
 -- users: one row per signed-in person; id matches Supabase Auth user id.
+-- role is permanent once set (see schema_roles.sql for immutability trigger on existing DBs).
 create table public.users (
   id uuid primary key references auth.users (id) on delete cascade,
   name text not null default '',
   phone text,
+  role text check (role is null or role in ('customer', 'admin')),
   created_at timestamptz not null default now()
 );
 
@@ -123,11 +125,12 @@ security definer
 set search_path = public
 as $$
 begin
-  insert into public.users (id, name, phone)
+  insert into public.users (id, name, phone, role)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'name', ''),
-    new.phone
+    new.phone,
+    null
   )
   on conflict (id) do nothing;
   return new;

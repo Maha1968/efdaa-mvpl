@@ -32,6 +32,10 @@ export async function createPurchase(input: CreatePurchaseInput) {
     return { error: "You must be signed in to submit a purchase." };
   }
 
+  if (await isAdminUser()) {
+    return { error: "Administrators cannot redeem tokens or earn points." };
+  }
+
   const { data: token, error: tokenError } = await supabase
     .from("tokens")
     .select("*")
@@ -180,6 +184,30 @@ export async function validatePurchase(purchaseId: string) {
     basePool,
   });
 
+  // Administrators never earn points — drop them and re-split the pool among customers.
+  const recipientIds = [...new Set(allocations.map((a) => a.user_id))];
+  const { data: recipientProfiles } = await supabase
+    .from("users")
+    .select("id, role")
+    .in("id", recipientIds);
+
+  const adminIds = new Set(
+    (recipientProfiles ?? [])
+      .filter((p) => p.role === "admin")
+      .map((p) => p.id),
+  );
+
+  let payable = allocations.filter((a) => !adminIds.has(a.user_id));
+  const payableWeight = payable.reduce((sum, a) => sum + a.weight, 0);
+  if (payableWeight > 0 && basePool > 0) {
+    payable = payable.map((a) => ({
+      ...a,
+      amount: Number(((basePool * a.weight) / payableWeight).toFixed(2)),
+    }));
+  } else {
+    payable = [];
+  }
+
   const { error: updateError } = await supabase
     .from("purchases")
     .update({
@@ -199,9 +227,9 @@ export async function validatePurchase(purchaseId: string) {
   }
 
   // Only write rewards for a validated purchase (SPEC). Skip zero-pool edge case inserts of all zeros.
-  if (allocations.length > 0) {
+  if (payable.length > 0) {
     const { error: rewardsError } = await supabase.from("rewards").insert(
-      allocations.map((a) => ({
+      payable.map((a) => ({
         purchase_id: purchaseId,
         user_id: a.user_id,
         role: a.role,

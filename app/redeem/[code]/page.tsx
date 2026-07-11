@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { RedeemForm } from "@/components/redeem-form";
 import { isTokenExpired } from "@/lib/tokens/helpers";
 import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
+import { isAdminUser } from "@/lib/auth/admin";
 import { notFound, redirect } from "next/navigation";
 
 type PageProps = {
@@ -19,6 +20,8 @@ export default async function RedeemPage({ params }: PageProps) {
   if (!user) {
     redirect(`/login?next=/redeem/${code}`);
   }
+
+  if (await isAdminUser()) redirect("/admin");
 
   const { data: token } = await supabase
     .from("tokens")

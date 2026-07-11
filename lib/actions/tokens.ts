@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { TOKEN_VALIDITY_HOURS } from "@/config/rewards";
 import { generateTokenCode } from "@/lib/utils/token-code";
 import { logReferralEvent } from "@/lib/actions/events";
+import { isAdminUser } from "@/lib/auth/admin";
 import { redirect } from "next/navigation";
 
 export type CreateTokenInput = {
@@ -32,6 +33,10 @@ export async function createOriginatorToken(input: CreateTokenInput) {
 
   if (!user) {
     return { error: "You must be signed in to create a token." };
+  }
+
+  if (await isAdminUser()) {
+    return { error: "Administrators cannot create or recommend tokens." };
   }
 
   const expiresAt = new Date(
@@ -95,6 +100,10 @@ export async function forwardToken(input: ForwardTokenInput) {
 
   if (!user) {
     return { error: "You must be signed in to forward a token." };
+  }
+
+  if (await isAdminUser()) {
+    return { error: "Administrators cannot share or claim tokens." };
   }
 
   const { data: parent, error: parentError } = await supabase

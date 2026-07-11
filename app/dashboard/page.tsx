@@ -13,8 +13,7 @@ export default async function CustomerDashboardPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/dashboard");
 
-  // Admins still get a customer view here; full ops live under /admin
-  const admin = await isAdminUser();
+  if (await isAdminUser()) redirect("/admin");
 
   const [{ data: allTokens }, { data: products }, { data: purchases }, { data: myRewards }] =
     await Promise.all([
@@ -57,15 +56,6 @@ export default async function CustomerDashboardPage() {
         </div>
 
         <DashboardNav current="/dashboard" links={CUSTOMER_NAV} />
-
-        {admin && (
-          <Link
-            href="/admin"
-            className="mb-6 block rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3 text-sm font-medium text-zinc-800"
-          >
-            Open Administrator Dashboard →
-          </Link>
-        )}
 
         {rows.length === 0 ? (
           <p className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
