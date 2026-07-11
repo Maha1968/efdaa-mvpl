@@ -373,36 +373,45 @@ For this stage only: show the button and a placeholder EFDAAgifts page with a ba
 will plug into this same button/route. Admins must not access EFDAAgifts.
 ```
 
-### Stage 7E — Demo seed data (three contrasting chains)
+### Stage 7E — Demo seed data (branching trees + admin Load/Reset)
 ```
 Re-read SPEC.md first. We are preparing this app for a live demo. Do NOT change any existing
 business logic, reward maths, genuineness logic, or role rules — only ADD seed data and an
 admin-only way to load and reset it.
 
-Build a "Demo Data" panel on the ADMIN dashboard with two buttons: "Load demo data" and
-"Reset demo data" (wipes only seeded demo rows, leaves real data alone). Tag every seeded row so
-a reset can find and remove it cleanly.
+Build a "Demo Data" panel on the ADMIN overview with "Load demo data" and "Reset demo data"
+(wipes only seeded demo rows, leaves real data alone). Tag every seeded row with is_demo so
+reset can remove it cleanly. Requires SUPABASE_SERVICE_ROLE_KEY.
 
 HARD RULES FOR THE SEED
-- Seed CUSTOMERS only. Never seed an administrator. Roles stay permanent and are still assigned
-  on first login via ADMIN_EMAIL. The seed must not write or alter any admin role.
-- Rewards must be produced by CALLING THE REAL reward + genuineness functions on the seeded
-  purchases. Do NOT hard-code genuineness scores or reward amounts. The demo must show numbers
-  the engine actually computed.
-- All dashboards keep the Privacy-by-Design rule: seeded people are shown by platform User ID
-  only. Give them display names ONLY where the app already shows the signed-in customer their
-  own name — never expose seeded PII on admin or analytics views.
-- Respect max depth 4 (chain of 5), TOKEN_VALIDITY_HOURS, and expires_at inheritance.
-- Use realistic Bengaluru coordinates, a plausible product with a barcode, and one partner store.
-  Use placeholder images for product / barcode / receipt photos so nothing renders broken.
+- Seed CUSTOMERS only. Never seed an administrator. Roles stay permanent (ADMIN_EMAIL on first
+  login). The seed must not write or alter any admin role.
+- Rewards must be produced by CALLING THE REAL reward + genuineness functions on seeded
+  purchases (applyPurchaseValidation). Do NOT hard-code genuineness scores or reward amounts.
+- Privacy-by-Design: seeded people shown by platform User ID only on admin views.
+- Respect max depth 4, TOKEN_VALIDITY_HOURS, and expires_at inheritance from originator.
+- Realistic Bengaluru coordinates, multiple demo products, one partner store, placeholder images.
 
-SEED BRANCHING TREES (children multiply under each parent) plus scoring contrasts:
-- Tree roots DEMOT1A / DEMOT2A / DEMOT3A: A → several B's → each B fans out to C's
-  (and some C's to D/E) so Network shows a real multi-branch tree.
-- Multiple demo products (tea, coffee, honey, spice).
-- Keep one proximity pair and one expired branch for genuineness contrast.
-Genuine hops use multi-kilometre Bengaluru spacing. Lookup DEMOT1A in Network / Assist.
-Requires SUPABASE_SERVICE_ROLE_KEY and running supabase/schema_demo.sql once.
+SEED SHAPE (Vercel-safe compact fanouts)
+- Branching depth-4 trees: parent → child → grandchild → great-grandchild.
+- Roots: DEMOT1A (tea), DEMOT2A (coffee), DEMOT3A (spice). Also DEMOPRX0 (proximity contrast)
+  and DEMOEXP0 (expired branch) for genuineness contrast.
+- Genuine hops use multi-kilometre Bengaluru spacing; keep one proximity pair for contrast.
+- Sample depth-4 leaves redeem via the real validation path so Network / Purchases / Rewards
+  show engine-computed numbers.
+- Seed logs referral_events (opened on depth≥1 tokens, claimed, redeemed). Opens on Overview
+  count those rows — requires supabase/schema_stage7a.sql (referral_events table) plus
+  schema_demo.sql (is_demo columns). Load fails early with a clear error if the table is missing.
+
+ADMIN UI ADDITIONS FOR THE DEMO
+- Referral Assist: full nested descendants (not only direct children); mark tokens that have a
+  purchase with (P) next to the code (antecedents, current token, descendants).
+- Network tree: same (P) marker on tokens that have a validated purchase.
+- Purchase view: show the purchase token code with (P) and depth; "Purchases in this referral
+  tree by depth" uses absolute depth from the originator (so leaf purchases are visible — relative
+  "deeper than this buyer" is empty for depth-4 leaves); plus rewards from this purchase by
+  recipient depth.
+- Overview Opens metric depends on referral_events; after creating the table, Reset + Load again.
 ```
 
 ---
@@ -431,8 +440,9 @@ Requires SUPABASE_SERVICE_ROLE_KEY and running supabase/schema_demo.sql once.
       customers; points display to 2 decimal places. Tunables live in config/rewards.ts.
 - [ ] Stage 7D: Points page shows "Buy using EFDAA points"; link opens /efdaagifts with EFDAAgifts
       banner (catalog later). Admins cannot open it.
-- [ ] Stage 7E: Admin Demo Data load seeds Chains A/B/C; genuineness + rewards from real engine;
-      reset removes only is_demo rows; Referral Assist finds DEMOGEN*/DEMOPRX*/DEMOEXP* with User IDs only.
+- [ ] Stage 7E: Admin Demo Data Load seeds DEMOT1A/2A/3A (+ DEMOPRX0/DEMOEXP0); genuineness +
+      rewards from real engine; reset removes only is_demo rows; Opens > 0 after schema_stage7a +
+      Load; Assist/Network show (P) on purchase tokens; Purchase view shows tree-by-depth totals.
 
 ---
 

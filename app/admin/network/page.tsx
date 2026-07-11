@@ -163,6 +163,9 @@ export default async function AdminNetworkPage({
                   <p className="mt-1 text-xs text-zinc-500">
                     {new Date(root.created_at).toLocaleString()} · code{" "}
                     <span className="font-mono">{root.code}</span>
+                    {purchases > 0
+                      ? ` · ${purchases} purchase${purchases === 1 ? "" : "s"} in tree`
+                      : ""}
                   </p>
                 </div>
                 <Link

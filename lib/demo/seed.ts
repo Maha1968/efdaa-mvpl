@@ -155,6 +155,17 @@ async function ensureDemoCustomer(
   return userId;
 }
 
+async function assertReferralEventsReady(admin: SupabaseClient) {
+  const { error } = await admin
+    .from("referral_events")
+    .select("id", { count: "exact", head: true });
+  if (error) {
+    throw new Error(
+      "referral_events table is missing (needed for Opens). In Supabase → SQL Editor, run supabase/schema_stage7a.sql, then supabase/schema_demo.sql. After that, Reset + Load demo data again.",
+    );
+  }
+}
+
 async function insertEvent(
   admin: SupabaseClient,
   tokenId: string,
@@ -179,7 +190,9 @@ async function insertEvent(
       created_at: at.toISOString(),
     });
     if (retryError) {
-      console.error("referral_events insert failed:", retryError.message);
+      throw new Error(
+        `referral_events insert failed (${eventType}): ${retryError.message}`,
+      );
     }
   }
 }
@@ -541,6 +554,7 @@ export async function loadDemoData(admin: SupabaseClient): Promise<{
   assistCodes: string[];
   summary: string;
 }> {
+  await assertReferralEventsReady(admin);
   await resetDemoData(admin);
 
   const emailCache = new Map<string, string>();

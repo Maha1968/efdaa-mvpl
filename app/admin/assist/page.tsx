@@ -67,6 +67,8 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
     buyer_user_id: string;
   } | null = null;
   let productName = "Product";
+  /** token_id → latest purchase status (any status counts as a purchase mark). */
+  const purchaseByTokenId = new Map<string, string>();
 
   if (code) {
     const { data } = await supabase
@@ -126,12 +128,41 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
           .single(),
       ]);
 
+      const treeTokens = (treeRows as Token[]) ?? [];
       directChildren = (childRows as Token[]) ?? [];
-      descendants = flattenDescendants(token.id, (treeRows as Token[]) ?? []);
+      descendants = flattenDescendants(token.id, treeTokens);
       events = eventRows ?? [];
       purchase = purchaseRow;
       productName = product?.name ?? "Product";
+
+      const treeIds = treeTokens.map((t) => t.id);
+      if (treeIds.length > 0) {
+        const { data: purchaseRows } = await supabase
+          .from("purchases")
+          .select("token_id, status, created_at")
+          .in("token_id", treeIds)
+          .order("created_at", { ascending: false });
+
+        for (const row of purchaseRows ?? []) {
+          if (!purchaseByTokenId.has(row.token_id)) {
+            purchaseByTokenId.set(row.token_id, row.status);
+          }
+        }
+      }
     }
+  }
+
+  function purchaseMark(tokenId: string) {
+    const status = purchaseByTokenId.get(tokenId);
+    if (!status) return null;
+    return (
+      <span
+        className="ml-1 font-sans font-semibold text-amber-700"
+        title={`Purchase on this token (${status})`}
+      >
+        (P)
+      </span>
+    );
   }
 
   const expired = token
@@ -176,7 +207,10 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
               <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                 <div>
                   <dt className="text-zinc-500">Code</dt>
-                  <dd className="font-mono font-medium">{token.code}</dd>
+                  <dd className="font-mono font-medium">
+                    {token.code}
+                    {purchaseMark(token.id)}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-zinc-500">Product</dt>
@@ -257,11 +291,16 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
               <h2 className="font-semibold text-zinc-900">
                 Antecedents (upstream)
               </h2>
+              <p className="mt-1 text-xs text-zinc-500">
+                <span className="font-semibold text-amber-700">(P)</span> =
+                purchase recorded on that token.
+              </p>
               <ol className="mt-3 space-y-2 text-sm">
                 {ancestors.map((a, i) => (
                   <li key={a.id} className="font-mono text-zinc-800">
                     {i === 0 ? "Originator" : `Depth ${a.depth}`}:{" "}
-                    {toPublicUserId(a.holder_user_id)} · {a.code} ·{" "}
+                    {toPublicUserId(a.holder_user_id)} · {a.code}
+                    {purchaseMark(a.id)} ·{" "}
                     {new Date(a.created_at).toLocaleString()}
                   </li>
                 ))}
@@ -274,7 +313,9 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
               </h2>
               <p className="mt-1 text-xs text-zinc-500">
                 Indented by generation: child → grandchild → great-grandchild →
-                depth 4.
+                depth 4.{" "}
+                <span className="font-semibold text-amber-700">(P)</span> =
+                purchase on that token.
               </p>
               {descendants.length === 0 ? (
                 <p className="mt-2 text-sm text-zinc-500">No downstream shares yet.</p>
@@ -287,8 +328,8 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
                       style={{ paddingLeft: indent * 16 }}
                     >
                       {indent > 0 ? "└ " : ""}
-                      {toPublicUserId(d.holder_user_id)} · {d.code} · depth{" "}
-                      {d.depth}
+                      {toPublicUserId(d.holder_user_id)} · {d.code}
+                      {purchaseMark(d.id)} · depth {d.depth}
                     </li>
                   ))}
                 </ul>

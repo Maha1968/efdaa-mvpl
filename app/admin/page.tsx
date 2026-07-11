@@ -132,9 +132,10 @@ export default async function AdminOverviewPage() {
         </div>
 
         <p className="mt-3 text-xs text-zinc-500">
-          Opens = times a token link was opened (logged event). Forwards = tokens
-          at depth 1+ (people who received a share). Demo Load should log both;
-          Reset + Load again after deploying event-logging fixes if Opens stay at 0.
+          Opens = rows in referral_events with type opened. Forwards = tokens at
+          depth 1+. If Opens stays at 0, the referral_events table is usually
+          missing — run supabase/schema_stage7a.sql (then schema_demo.sql) in
+          Supabase SQL Editor, then Reset + Load.
         </p>
 
         <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">

@@ -49,6 +49,7 @@ function buildTree(
 }
 
 function TreeNodeView({ node, depth }: { node: TreeNode; depth: number }) {
+  const hasPurchase = node.purchases > 0;
   return (
     <li className="mt-3">
       <div
@@ -57,12 +58,31 @@ function TreeNodeView({ node, depth }: { node: TreeNode; depth: number }) {
       >
         <p className="text-xs font-medium uppercase tracking-wide text-emerald-700">
           Level {node.token.depth}
+          {hasPurchase ? (
+            <span
+              className="ml-2 font-sans font-semibold normal-case text-amber-700"
+              title="Purchase recorded on this token"
+            >
+              (P)
+            </span>
+          ) : null}
         </p>
         <p className="mt-1 font-mono text-sm font-semibold text-zinc-900">
           {toPublicUserId(node.token.holder_user_id)}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          Code <span className="font-mono">{node.token.code}</span>
+          Code{" "}
+          <span className="font-mono">
+            {node.token.code}
+            {hasPurchase ? (
+              <span
+                className="ml-1 font-sans font-semibold text-amber-700"
+                title="Purchase recorded on this token"
+              >
+                (P)
+              </span>
+            ) : null}
+          </span>
         </p>
         <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-600 sm:grid-cols-4">
           <span>Forwards: {node.children.length}</span>
@@ -148,6 +168,10 @@ export default async function AdminNetworkTreePage({ params }: PageProps) {
             <span className="font-mono">
               {toPublicUserId(root.holder_user_id)}
             </span>
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            <span className="font-semibold text-amber-700">(P)</span> = purchase
+            recorded on that token.
           </p>
         </div>
 
