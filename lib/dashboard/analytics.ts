@@ -13,7 +13,7 @@ export type DepthStats = {
 export type OriginatorProductRow = {
   rootTokenId: string;
   rootCode: string;
-  productId: string;
+  productId: string | null;
   productName: string;
   recommendedAt: string;
   expiresAt: string;
@@ -73,8 +73,10 @@ export function buildCustomerProductStats(input: {
   purchases: Purchase[];
   rewards: Reward[];
 }): OriginatorProductRow[] {
-  const productName = (id: string) =>
-    products.find((p) => p.id === id)?.name ?? "Product";
+  const productName = (id: string | null) =>
+    id
+      ? products.find((p) => p.id === id)?.name ?? "Product"
+      : "Photo recommendation";
   const { rootTokens, allTokens, products, purchases, rewards } = input;
 
   return rootTokens.map((root) => {

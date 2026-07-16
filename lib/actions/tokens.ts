@@ -2,22 +2,33 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { TOKEN_VALIDITY_HOURS } from "@/config/rewards";
+import type { StoreResolution } from "@/config/categories";
 import { generateTokenCode } from "@/lib/utils/token-code";
 import { logReferralEvent } from "@/lib/actions/events";
 import { isAdminUser } from "@/lib/auth/admin";
 import { redirect } from "next/navigation";
 
 export type CreateTokenInput = {
-  productId: string;
-  offerId: string;
-  scannedBarcode: string;
-  productPhotoUrl: string;
-  barcodePhotoUrl: string;
+  /** 1–5 product/range photo public URLs */
+  photoUrls: string[];
+  /** Optional barcode number (never required). */
+  scannedBarcode?: string;
+  /** Optional barcode photo URL. */
+  barcodePhotoUrl?: string;
+  /** Optional store signage photo URL. */
+  storeSignagePhotoUrl?: string;
+  category: string;
   claimLat: number;
   claimLng: number;
   claimLocationText?: string;
-  /** Partner store this recommendation is for. */
-  originatorStoreId: string;
+  /** Partner store id when user picked one from list/suggestions. */
+  originatorStoreId?: string;
+  /** Free-text store when none matched. */
+  storeNameText?: string;
+  storeResolution: StoreResolution;
+  offerId: string;
+  /** Optional catalog product link (legacy / demo). */
+  productId?: string;
 };
 
 export type ForwardTokenInput = {
@@ -41,10 +52,23 @@ export async function createOriginatorToken(input: CreateTokenInput) {
     return { error: "Administrators cannot create or recommend tokens." };
   }
 
+  if (!input.photoUrls.length || input.photoUrls.length > 5) {
+    return { error: "Please add between 1 and 5 photos." };
+  }
+
+  if (!input.category.trim()) {
+    return { error: "Please choose a category." };
+  }
+
+  if (!input.originatorStoreId && !input.storeNameText?.trim()) {
+    return { error: "Please pick or enter the store you are recommending from." };
+  }
+
   const expiresAt = new Date(
     Date.now() + TOKEN_VALIDITY_HOURS * 60 * 60 * 1000,
   ).toISOString();
 
+  const barcode = input.scannedBarcode?.trim() || null;
   let code = generateTokenCode();
   let attempts = 0;
 
@@ -57,15 +81,19 @@ export async function createOriginatorToken(input: CreateTokenInput) {
         parent_token_id: null,
         root_token_id: null,
         depth: 0,
-        product_id: input.productId,
+        product_id: input.productId || null,
         offer_id: input.offerId,
-        scanned_barcode: input.scannedBarcode,
-        product_photo_url: input.productPhotoUrl,
-        barcode_photo_url: input.barcodePhotoUrl,
+        scanned_barcode: barcode,
+        product_photo_url: input.photoUrls[0] ?? null,
+        barcode_photo_url: input.barcodePhotoUrl || null,
+        store_signage_photo_url: input.storeSignagePhotoUrl || null,
         claim_lat: input.claimLat,
         claim_lng: input.claimLng,
         claim_location_text: input.claimLocationText || null,
-        originator_store_id: input.originatorStoreId,
+        originator_store_id: input.originatorStoreId || null,
+        category: input.category.trim(),
+        store_name_text: input.storeNameText?.trim() || null,
+        store_resolution: input.storeResolution,
         expires_at: expiresAt,
       })
       .select("id")
@@ -87,6 +115,21 @@ export async function createOriginatorToken(input: CreateTokenInput) {
 
     if (updateError) {
       return { error: updateError.message };
+    }
+
+    const photoRows = input.photoUrls.map((url, i) => ({
+      token_id: token.id,
+      url,
+      sort_order: i,
+    }));
+
+    const { error: photosError } = await supabase
+      .from("token_photos")
+      .insert(photoRows);
+
+    if (photosError) {
+      // Column/table missing until schema_stage7j.sql is run — still keep token.
+      console.error("token_photos insert:", photosError.message);
     }
 
     redirect(`/create/${code}`);
@@ -144,10 +187,14 @@ export async function forwardToken(input: ForwardTokenInput) {
         scanned_barcode: parent.scanned_barcode,
         product_photo_url: parent.product_photo_url,
         barcode_photo_url: parent.barcode_photo_url,
+        store_signage_photo_url: parent.store_signage_photo_url,
         claim_lat: input.claimLat,
         claim_lng: input.claimLng,
         claim_location_text: input.claimLocationText || null,
         originator_store_id: parent.originator_store_id,
+        category: parent.category,
+        store_name_text: parent.store_name_text,
+        store_resolution: parent.store_resolution,
         expires_at: parent.expires_at,
       })
       .select("id, code")
@@ -160,6 +207,22 @@ export async function forwardToken(input: ForwardTokenInput) {
         continue;
       }
       return { error: insertError.message };
+    }
+
+    const { data: parentPhotos } = await supabase
+      .from("token_photos")
+      .select("url, sort_order")
+      .eq("token_id", parent.id)
+      .order("sort_order");
+
+    if (parentPhotos?.length) {
+      await supabase.from("token_photos").insert(
+        parentPhotos.map((p) => ({
+          token_id: child.id,
+          url: p.url,
+          sort_order: p.sort_order,
+        })),
+      );
     }
 
     await logReferralEvent({

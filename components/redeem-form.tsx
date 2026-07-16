@@ -10,8 +10,10 @@ import type { Product, Store } from "@/types/database";
 type RedeemFormProps = {
   tokenCode: string;
   product: Product;
-  /** Locked to the originator's store for this recommendation. */
-  originatorStore: Store;
+  originatorStore: Store | null;
+  storeLabel: string;
+  /** When false, receipt barcode is optional (token had no barcode). */
+  barcodeRequired: boolean;
   userId: string;
 };
 
@@ -24,10 +26,14 @@ export function RedeemForm({
   tokenCode,
   product,
   originatorStore,
+  storeLabel,
+  barcodeRequired,
   userId,
 }: RedeemFormProps) {
-  const [amount, setAmount] = useState(product.price.toString());
-  const [receiptBarcode, setReceiptBarcode] = useState(product.barcode);
+  const [amount, setAmount] = useState(
+    product.price > 0 ? product.price.toString() : "",
+  );
+  const [receiptBarcode, setReceiptBarcode] = useState(product.barcode || "");
   const [receiptPhoto, setReceiptPhoto] = useState<File | null>(null);
   const [receiptPurchasedAt, setReceiptPurchasedAt] = useState(
     toDatetimeLocalValue(new Date()),
@@ -65,7 +71,7 @@ export function RedeemForm({
       return;
     }
 
-    if (!receiptBarcode.trim()) {
+    if (barcodeRequired && !receiptBarcode.trim()) {
       setError("Please enter the barcode from your receipt.");
       return;
     }
@@ -93,7 +99,7 @@ export function RedeemForm({
 
       const result = await createPurchase({
         tokenCode,
-        storeId: originatorStore.id,
+        storeId: originatorStore?.id,
         amount: parsedAmount,
         receiptBarcode: receiptBarcode.trim(),
         receiptImageUrl,
@@ -121,17 +127,17 @@ export function RedeemForm({
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <p className="text-sm font-medium text-zinc-500">Product</p>
         <p className="mt-1 text-lg font-semibold text-zinc-900">{product.name}</p>
-        <p className="mt-1 text-sm text-zinc-600">₹{product.price}</p>
+        {product.price > 0 ? (
+          <p className="mt-1 text-sm text-zinc-600">₹{product.price}</p>
+        ) : null}
       </div>
 
       <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
         <p className="text-sm font-medium text-emerald-900">
           Originator&apos;s store (required)
         </p>
-        <p className="mt-1 text-base font-semibold text-zinc-900">
-          {originatorStore.name}
-        </p>
-        {originatorStore.address ? (
+        <p className="mt-1 text-base font-semibold text-zinc-900">{storeLabel}</p>
+        {originatorStore?.address ? (
           <p className="mt-1 text-sm text-zinc-600">{originatorStore.address}</p>
         ) : null}
         <p className="mt-2 text-xs text-zinc-600">
@@ -191,12 +197,21 @@ export function RedeemForm({
           className="mb-1.5 block text-sm font-medium text-zinc-700"
         >
           Barcode on receipt
+          {!barcodeRequired ? (
+            <span className="font-normal text-zinc-400"> (optional)</span>
+          ) : null}
         </label>
+        {!barcodeRequired ? (
+          <p className="mb-2 text-sm text-zinc-500">
+            This recommendation had no barcode — leaving blank is fine
+            (barcode_match = not_provided, no score penalty).
+          </p>
+        ) : null}
         <input
           id="receipt-barcode"
           type="text"
           inputMode="numeric"
-          required
+          required={barcodeRequired}
           value={receiptBarcode}
           onChange={(e) => setReceiptBarcode(e.target.value)}
           className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"

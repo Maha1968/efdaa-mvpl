@@ -5,6 +5,7 @@ import { isTokenExpired } from "@/lib/tokens/helpers";
 import { hasTokenBeenRedeemed } from "@/lib/tokens/redemption";
 import { isAdminUser } from "@/lib/auth/admin";
 import { notFound, redirect } from "next/navigation";
+import type { Product, Store } from "@/types/database";
 
 type PageProps = {
   params: Promise<{ code: string }>;
@@ -68,38 +69,59 @@ export default async function RedeemPage({ params }: PageProps) {
     );
   }
 
-  const [{ data: product }, { data: rootToken }] = await Promise.all([
-    supabase.from("products").select("*").eq("id", token.product_id).single(),
-    supabase
-      .from("tokens")
-      .select("originator_store_id")
-      .eq("id", token.root_token_id ?? token.id)
-      .single(),
-  ]);
+  const { data: rootToken } = await supabase
+    .from("tokens")
+    .select("originator_store_id, store_name_text, category, scanned_barcode")
+    .eq("id", token.root_token_id ?? token.id)
+    .single();
 
   const originatorStoreId =
     rootToken?.originator_store_id ?? token.originator_store_id ?? null;
 
-  const { data: originatorStore } = originatorStoreId
-    ? await supabase
-        .from("stores")
-        .select("*")
-        .eq("id", originatorStoreId)
-        .single()
-    : { data: null };
+  const [{ data: product }, { data: originatorStore }] = await Promise.all([
+    token.product_id
+      ? supabase
+          .from("products")
+          .select("*")
+          .eq("id", token.product_id)
+          .single()
+      : Promise.resolve({ data: null as Product | null }),
+    originatorStoreId
+      ? supabase
+          .from("stores")
+          .select("*")
+          .eq("id", originatorStoreId)
+          .single()
+      : Promise.resolve({ data: null as Store | null }),
+  ]);
 
-  if (!product || !originatorStore) {
+  const storeLabel =
+    originatorStore?.name ??
+    rootToken?.store_name_text ??
+    token.store_name_text ??
+    null;
+
+  if (!storeLabel && !originatorStore) {
     return (
       <main className="flex flex-1 flex-col px-6 py-10">
         <div className="mx-auto w-full max-w-md text-center">
           <h1 className="text-xl font-semibold text-zinc-900">Setup incomplete</h1>
           <p className="mt-2 text-sm text-zinc-600">
-            Product or originator store is missing for this recommendation.
+            This recommendation has no originator store recorded.
           </p>
         </div>
       </main>
     );
   }
+
+  const displayProduct: Product = product ?? {
+    id: "generic",
+    name: token.category
+      ? `Recommendation — ${token.category}`
+      : "Recommended products",
+    price: 0,
+    barcode: token.scanned_barcode ?? "",
+  };
 
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
@@ -117,15 +139,20 @@ export default async function RedeemPage({ params }: PageProps) {
           </h1>
           <p className="mt-2 text-sm text-zinc-600">
             Buy at the originator&apos;s store, capture your location there,
-            enter the receipt date/time and barcode, and upload a photo of your
-            bill. You can only redeem this token once.
+            enter the receipt date/time
+            {token.scanned_barcode ? " and barcode" : ""}, and upload a photo of
+            your bill. You can only redeem this token once.
           </p>
         </div>
 
         <RedeemForm
           tokenCode={code}
-          product={product}
+          product={displayProduct}
           originatorStore={originatorStore}
+          storeLabel={storeLabel ?? "Originator store"}
+          barcodeRequired={Boolean(
+            rootToken?.scanned_barcode ?? token.scanned_barcode,
+          )}
           userId={user.id}
         />
       </div>

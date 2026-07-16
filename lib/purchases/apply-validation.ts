@@ -83,7 +83,13 @@ export async function applyPurchaseValidation(
 
   const [{ data: product }, { data: originatorStore }, { data: offer }] =
     await Promise.all([
-      supabase.from("products").select("*").eq("id", token.product_id).single(),
+      token.product_id
+        ? supabase
+            .from("products")
+            .select("*")
+            .eq("id", token.product_id)
+            .single()
+        : Promise.resolve({ data: null }),
       originatorStoreId
         ? supabase
             .from("stores")
@@ -94,13 +100,12 @@ export async function applyPurchaseValidation(
       supabase.from("offers").select("*").eq("id", token.offer_id).single(),
     ]);
 
-  if (!product) return { ok: false, error: "Product not found." };
   if (!offer) return { ok: false, error: "Offer not found." };
 
   const flags = await computePurchaseSignalFlags({
     purchase,
     token,
-    product,
+    product: product ?? null,
     originatorStore: originatorStore ?? null,
     fetchParentToken,
   });

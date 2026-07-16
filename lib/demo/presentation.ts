@@ -220,7 +220,8 @@ async function loadOneChain(
     .eq("is_demo", true);
 
   const flags = {
-    barcode_match: Boolean(purchase.barcode_match),
+    barcode_match: (purchase.barcode_match ??
+      "not_provided") as import("@/config/categories").BarcodeMatchStatus,
     store_match: Boolean(purchase.store_match),
     within_window: Boolean(purchase.within_window),
   };
@@ -362,10 +363,13 @@ async function loadOneChain(
   const checks: DemoCheck[] = [
     {
       label: "Barcode match",
-      pass: flags.barcode_match,
-      detail: flags.barcode_match
-        ? "Receipt barcode matches the recommended product"
-        : "Barcode did not match",
+      pass: flags.barcode_match !== "mismatch",
+      detail:
+        flags.barcode_match === "match"
+          ? "Receipt barcode matches the recommendation"
+          : flags.barcode_match === "not_provided"
+            ? "No barcode on the recommendation — not_provided (no score penalty)"
+            : "Barcode did not match",
     },
     {
       label: "Correct store",

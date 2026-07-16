@@ -89,7 +89,7 @@ export type ChainSeedReport = {
     suspicious: boolean;
   }[];
   flags: {
-    barcode_match: boolean;
+    barcode_match: string | boolean;
     store_match: boolean;
     within_window: boolean;
   };
@@ -211,7 +211,7 @@ async function assertReferralEventsReady(admin: SupabaseClient) {
     .select("id", { count: "exact", head: true });
   if (error) {
     throw new Error(
-      "referral_events table is missing (needed for Opens). In Supabase → SQL Editor, run supabase/schema_stage7a.sql, then supabase/schema_demo.sql, then supabase/schema_stage7h.sql (originator_store_id + receipt_purchased_at). After that, Reset + Load demo data again.",
+      "referral_events table is missing (needed for Opens). In Supabase → SQL Editor, run supabase/schema_stage7a.sql, then supabase/schema_demo.sql, then supabase/schema_stage7h.sql, then supabase/schema_stage7j.sql. After that, Reset + Load demo data again.",
     );
   }
 }
@@ -281,6 +281,8 @@ async function createTokenNode(input: {
       claim_lng: input.place.lng,
       claim_location_text: input.place.text,
       originator_store_id: input.originatorStoreId,
+      category: "Food & Grocery",
+      store_resolution: "matched",
       expires_at: input.expiresAt.toISOString(),
       created_at: input.at.toISOString(),
       is_demo: true,

@@ -138,7 +138,13 @@ export default async function PurchaseResultPage({ params }: PageProps) {
             <div className="rounded-xl bg-zinc-50 px-3 py-2">
               <p className="text-zinc-500">Barcode match</p>
               <p className="font-medium text-zinc-900">
-                {purchase.barcode_match ? "Yes" : `No (×${BARCODE_MISS_MULTIPLIER})`}
+                {purchase.barcode_match === "match"
+                  ? "Yes (match)"
+                  : purchase.barcode_match === "not_provided"
+                    ? "Not provided (no penalty)"
+                    : purchase.barcode_match === "mismatch"
+                      ? `Mismatch (×${BARCODE_MISS_MULTIPLIER})`
+                      : "—"}
               </p>
             </div>
             <div className="rounded-xl bg-zinc-50 px-3 py-2">

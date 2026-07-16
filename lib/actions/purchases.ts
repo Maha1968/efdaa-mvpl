@@ -10,7 +10,7 @@ import { redirect } from "next/navigation";
 
 export type CreatePurchaseInput = {
   tokenCode: string;
-  storeId: string;
+  storeId?: string;
   amount: number;
   receiptBarcode: string;
   receiptImageUrl: string;
@@ -67,26 +67,30 @@ export async function createPurchase(input: CreatePurchaseInput) {
 
   const { data: rootToken } = await supabase
     .from("tokens")
-    .select("created_at, originator_store_id")
+    .select("created_at, originator_store_id, store_name_text")
     .eq("id", token.root_token_id ?? token.id)
     .single();
 
   const originatorStoreId =
     rootToken?.originator_store_id ?? token.originator_store_id ?? null;
+  const storeNameText =
+    rootToken?.store_name_text ?? token.store_name_text ?? null;
 
-  if (!originatorStoreId) {
+  if (!originatorStoreId && !storeNameText) {
     return {
       error:
         "This recommendation has no originator store. Ask the originator to recreate it.",
     };
   }
 
-  if (input.storeId !== originatorStoreId) {
+  if (originatorStoreId && input.storeId && input.storeId !== originatorStoreId) {
     return {
       error:
         "Purchase must be recorded at the originator’s store for this recommendation.",
     };
   }
+
+  const resolvedStoreId = originatorStoreId ?? input.storeId ?? null;
 
   const originTime = rootToken?.created_at ?? token.created_at;
   const timeToPurchaseHours = Number(
@@ -101,7 +105,7 @@ export async function createPurchase(input: CreatePurchaseInput) {
     .insert({
       token_id: token.id,
       buyer_user_id: user.id,
-      store_id: originatorStoreId,
+      store_id: resolvedStoreId,
       purchase_lat: input.purchaseLat,
       purchase_lng: input.purchaseLng,
       amount: input.amount,

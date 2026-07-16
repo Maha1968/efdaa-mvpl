@@ -60,7 +60,8 @@ export default async function AdminOverviewPage() {
 
   const productCounts = new Map<string, number>();
   for (const t of originators) {
-    productCounts.set(t.product_id, (productCounts.get(t.product_id) ?? 0) + 1);
+    const pid = t.product_id ?? "__none__";
+    productCounts.set(pid, (productCounts.get(pid) ?? 0) + 1);
   }
   const topProductIds = Array.from(productCounts.entries())
     .sort((a, b) => b[1] - a[1])
@@ -68,6 +69,9 @@ export default async function AdminOverviewPage() {
 
   const products = await Promise.all(
     topProductIds.map(async ([id, count]) => {
+      if (id === "__none__") {
+        return { name: "Photo recommendation", count };
+      }
       const { data } = await supabase
         .from("products")
         .select("name")

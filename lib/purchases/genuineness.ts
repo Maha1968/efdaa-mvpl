@@ -217,11 +217,14 @@ export function computeGenuinenessScore(
   let score = 1.0;
   reasons.push("Started at 1.0 (within window)");
 
-  if (!flags.barcode_match) {
+  // CRITICAL: not_provided must NOT apply BARCODE_MISS_MULTIPLIER.
+  if (flags.barcode_match === "mismatch") {
     score *= BARCODE_MISS_MULTIPLIER;
     reasons.push(
       `Barcode miss × ${BARCODE_MISS_MULTIPLIER} → ${score.toFixed(3)}`,
     );
+  } else if (flags.barcode_match === "not_provided") {
+    reasons.push("Barcode not provided — no barcode penalty");
   } else {
     reasons.push("Barcode matched");
   }

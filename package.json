@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prove:barcode": "npx --yes tsx scripts/prove-barcode-not-provided.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

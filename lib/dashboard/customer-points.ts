@@ -67,9 +67,10 @@ function roleGroup(role: RewardRole): PointsRoleGroup {
 }
 
 function productNameOf(
-  productId: string,
+  productId: string | null,
   products: { id: string; name: string }[],
 ) {
+  if (!productId) return "Photo recommendation";
   return products.find((p) => p.id === productId)?.name ?? "Product";
 }
 

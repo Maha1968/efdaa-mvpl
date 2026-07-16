@@ -59,16 +59,23 @@ create table public.tokens (
   parent_token_id uuid references public.tokens (id) on delete set null,
   root_token_id uuid references public.tokens (id) on delete set null,
   depth integer not null default 0 check (depth >= 0 and depth <= 4),
-  product_id uuid not null references public.products (id),
+  product_id uuid references public.products (id),
   offer_id uuid not null references public.offers (id),
   scanned_barcode text,
   product_photo_url text,
   barcode_photo_url text,
+  store_signage_photo_url text,
   claim_lat double precision,
   claim_lng double precision,
   claim_location_text text,
   -- Store the originator recommended from (set on root; copied to children).
   originator_store_id uuid references public.stores (id),
+  category text,
+  store_name_text text,
+  store_resolution text check (
+    store_resolution is null
+    or store_resolution in ('matched', 'suggested', 'user_entered')
+  ),
   expires_at timestamptz not null,
   created_at timestamptz not null default now()
 );
@@ -76,6 +83,16 @@ create table public.tokens (
 create index tokens_code_idx on public.tokens (code);
 create index tokens_parent_idx on public.tokens (parent_token_id);
 create index tokens_root_idx on public.tokens (root_token_id);
+
+-- Recommendation photos (1–5) for Stage 7J create flow
+create table public.token_photos (
+  id uuid primary key default gen_random_uuid(),
+  token_id uuid not null references public.tokens (id) on delete cascade,
+  url text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+create index token_photos_token_idx on public.token_photos (token_id);
 
 -- purchases: the uploaded receipt and the signals computed at validation.
 create table public.purchases (
@@ -92,7 +109,10 @@ create table public.purchases (
   receipt_purchased_at timestamptz,
   status text not null default 'pending'
     check (status in ('pending', 'validated', 'rejected')),
-  barcode_match boolean,
+  barcode_match text check (
+    barcode_match is null
+    or barcode_match in ('match', 'mismatch', 'not_provided')
+  ),
   store_match boolean,
   within_window boolean,
   time_to_purchase_hours numeric(10, 2),
@@ -164,6 +184,7 @@ alter table public.products enable row level security;
 alter table public.offers enable row level security;
 alter table public.stores enable row level security;
 alter table public.tokens enable row level security;
+alter table public.token_photos enable row level security;
 alter table public.purchases enable row level security;
 alter table public.rewards enable row level security;
 
@@ -190,6 +211,11 @@ create policy "tokens insert" on public.tokens
   for insert to authenticated with check (true);
 create policy "tokens update" on public.tokens
   for update to authenticated using (true);
+
+create policy "token_photos readable" on public.token_photos
+  for select to authenticated using (true);
+create policy "token_photos insert" on public.token_photos
+  for insert to authenticated with check (true);
 
 -- purchases: signed-in users can read and create; validation updates allowed in pilot
 create policy "purchases readable" on public.purchases

@@ -2,6 +2,11 @@
  * Database types — mirror the Supabase tables defined in supabase/schema.sql (from SPEC.md).
  */
 
+import type {
+  BarcodeMatchStatus,
+  StoreResolution,
+} from "@/config/categories";
+
 export type PurchaseStatus = "pending" | "validated" | "rejected";
 
 export type RewardRole =
@@ -47,7 +52,7 @@ export interface Token {
   parent_token_id: string | null;
   root_token_id: string;
   depth: number;
-  product_id: string;
+  product_id: string | null;
   offer_id: string;
   scanned_barcode: string | null;
   product_photo_url: string | null;
@@ -57,7 +62,19 @@ export interface Token {
   claim_location_text: string | null;
   /** Partner store the originator recommended from (root + descendants). */
   originator_store_id: string | null;
+  category: string | null;
+  store_name_text: string | null;
+  store_resolution: StoreResolution | null;
+  store_signage_photo_url: string | null;
   expires_at: string;
+  created_at: string;
+}
+
+export interface TokenPhoto {
+  id: string;
+  token_id: string;
+  url: string;
+  sort_order: number;
   created_at: string;
 }
 
@@ -74,7 +91,8 @@ export interface Purchase {
   /** Date/time from the receipt/invoice — source of purchase duration. */
   receipt_purchased_at: string | null;
   status: PurchaseStatus;
-  barcode_match: boolean | null;
+  /** Tri-state: match | mismatch | not_provided (neutral — no score penalty). */
+  barcode_match: BarcodeMatchStatus | null;
   store_match: boolean | null;
   within_window: boolean | null;
   time_to_purchase_hours: number | null;

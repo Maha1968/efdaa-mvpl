@@ -15,20 +15,18 @@ export default async function CreateTokenPage() {
   const role = await getAppRole();
   if (role === "admin") redirect("/admin");
 
-  const [{ data: products }, { data: offers }, { data: stores }] =
-    await Promise.all([
-      supabase.from("products").select("*").order("name"),
-      supabase.from("offers").select("*").order("name"),
-      supabase.from("stores").select("*").order("name"),
-    ]);
+  const [{ data: offers }, { data: stores }] = await Promise.all([
+    supabase.from("offers").select("*").order("name"),
+    supabase.from("stores").select("*").order("name"),
+  ]);
 
-  if (!products?.length || !offers?.length || !stores?.length) {
+  if (!offers?.length) {
     return (
       <main className="flex flex-1 flex-col px-6 py-10">
         <div className="mx-auto w-full max-w-md text-center">
           <h1 className="text-xl font-semibold text-zinc-900">Setup incomplete</h1>
           <p className="mt-2 text-sm text-zinc-600">
-            Add sample products, offers, and stores in Supabase first.
+            Add at least one offer in Supabase first.
           </p>
           <Link href="/" className="mt-6 inline-block text-emerald-700 underline">
             Back home
@@ -50,19 +48,17 @@ export default async function CreateTokenPage() {
             EFDAA
           </p>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
-            Create a token
+            Recommend something
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-            Photograph a product and its barcode, pick the store you are
-            recommending from, capture your location, and share a token — no
-            purchase needed.
+            Photos first. Barcode is optional. We only ask for your location
+            when you are ready to share.
           </p>
         </div>
 
         <CreateTokenForm
-          products={products}
           offers={offers}
-          stores={stores}
+          stores={stores ?? []}
           userId={user.id}
         />
       </div>

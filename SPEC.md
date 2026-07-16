@@ -85,9 +85,15 @@ and WHEN that person claimed/created it.
 - `parent_token_id` — the token this was forwarded FROM (NULL if originator's token)
 - `root_token_id` — the originator's original token (same for the whole chain)
 - `depth` — 0 for originator, then 1..4. **Max depth 4 → chain of 5.**
-- `product_id`, `offer_id`
-- `scanned_barcode` — the barcode captured at share time (proof the sharer saw the product)
-- `product_photo_url`, `barcode_photo_url` — proof photos (Supabase Storage)
+- `product_id` (nullable for photo-first recommendations), `offer_id`
+- `scanned_barcode` — OPTIONAL barcode at share time. Absence → purchase
+  `barcode_match = not_provided` (no genuineness penalty).
+- `product_photo_url`, `barcode_photo_url` — legacy single URLs; Stage 7J also uses
+  **`token_photos`** (1–5 recommendation photos).
+- `store_signage_photo_url` — OPTIONAL storefront/signage photo
+- `category` — inferred or manually chosen category
+- `store_name_text` — when no partner store row was matched
+- `store_resolution` — `matched` | `suggested` | `user_entered`
 - `claim_lat`, `claim_lng` — WHERE this person was when they claimed/created this token
 - `claim_location_text` — OPTIONAL place name the user typed (e.g. "Phoenix Mall")
 - `originator_store_id` — partner store the originator recommended from (set on root;
@@ -95,15 +101,19 @@ and WHEN that person claimed/created it.
 - `expires_at` — inherited from the root (root.created_at + validity window). Same for the chain.
 - `created_at` — WHEN this token was claimed/created (used for claim-duration / proximity)
 
+**token_photos** — `id`, `token_id`, `url`, `sort_order`, `created_at` (1–5 photos per token)
+
 **purchases** (the uploaded receipt)
-- `id`, `token_id`, `buyer_user_id`, `store_id` (must be the originator’s store)
+- `id`, `token_id`, `buyer_user_id`, `store_id` (originator's store when matched)
 - `purchase_lat`, `purchase_lng` — where the purchase happened (GPS at checkout)
 - `amount`, `receipt_image_url`, `receipt_barcode` (manual in pilot)
 - `receipt_purchased_at` — **date/time printed on the receipt** (required). Source of
-  purchase duration, window window, and hop-to-purchase times. Not app submit time.
+  purchase duration, validity window, and hop-to-purchase times. Not app submit time.
 - `status` — `pending` | `validated` | `rejected`
 - Signal flags (computed at validation):
-  - `barcode_match`, `store_match`, `within_window`
+  - `barcode_match` — **`match` | `mismatch` | `not_provided`**. `not_provided` when the
+    originator token has no `scanned_barcode` — **never** apply `BARCODE_MISS_MULTIPLIER`.
+  - `store_match`, `within_window`
   - `time_to_purchase_hours` — hours from **originator share** to **`receipt_purchased_at`**.
     Always ≥ the originator→buyer-claim gap (`receipt_purchased_at` ≥ buyer claim).
   - `min_hop_distance_m` — distance (m) between **originator claim** and **buyer token claim**
@@ -140,7 +150,11 @@ that look self-dealing. Start at `1.0`, then apply these configurable adjustment
 
 - If `within_window` is **false** → `genuineness_score = 0` (scored pool is 0; pilot still pays
   the zero-score floor — see Step B). Window uses **`receipt_purchased_at`** vs `expires_at`.
-- If `barcode_match` is **false** → × `BARCODE_MISS_MULTIPLIER` (0.5).
+- If `barcode_match` is **`mismatch`** → × `BARCODE_MISS_MULTIPLIER` (0.5).
+- If `barcode_match` is **`not_provided`** (token had no barcode at share time) → **do not
+  apply** `BARCODE_MISS_MULTIPLIER`. A barcode-free but otherwise genuine referral scores
+  **1.00** on this factor.
+- If `barcode_match` is **`match`** → no barcode penalty.
 - If `store_match` is **false** → × `STORE_MISS_MULTIPLIER` (**0.01**). `store_match` means
   purchase GPS is within `STORE_MATCH_MAX_DISTANCE_M` (**50 m**) of the **originator’s store**
   GPS (and `store_id` is that store). Claim/open may be elsewhere; purchase should be at the
@@ -561,6 +575,30 @@ ON /demo: label BUYER CLAIMED vs PURCHASE (from receipt) separately; scoring hop
 fraud score".
 ```
 
+### Stage 7J — New create flow: multi-photo, optional barcode, deferred GPS + store suggestion
+```
+Re-read SPEC.md. This REPLACES the Stage 3 create flow. Do NOT change lineage, expiry, reward,
+or proximity/genuineness rules — only the capture flow and the fields it writes (plus the
+barcode_match tri-state so not_provided is neutral).
+
+ORDER (photos first, GPS last):
+1. Create screen: "What would you like to recommend?"
+2. User takes 1–5 PHOTOS (max 5; thumbnails, delete/retake). Barcode photo OPTIONAL.
+   Store-signage photo OPTIONAL.
+3. On "I want to share": capture GPS; category dropdown (vision API optional later);
+   suggest nearby partner stores from GPS or type store name.
+4. Create token with token_photos, optional barcode, category, originator_store_id or
+   store_name_text + store_resolution, claim GPS, expires_at. Then WhatsApp share.
+
+BARCODE OPTIONAL — not_provided is NEUTRAL:
+- barcode_match = match | mismatch | not_provided
+- No barcode on token → not_provided → do NOT apply BARCODE_MISS_MULTIPLIER
+- Only mismatch applies ×0.5
+
+Manual fallbacks so the pilot works with ZERO paid APIs. Mobile-first.
+SQL: supabase/schema_stage7j.sql
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -600,6 +638,8 @@ fraud score".
       originator↔buyer claim; mobile at 375px.
 - [ ] Stage 7H: PROXIMITY_PENALTY_MULTIPLIER = 0.01; /demo labels BUYER CLAIMED vs PURCHASE
       (from receipt) separately; DEMOPRX score 0.01 (~₹0.65 on ₹1299); claim never uses receipt.
+- [ ] Stage 7J: Create flow is photos-first (1–5), barcode optional, GPS on "I want to share";
+      barcode_match not_provided does not apply ×0.5; schema_stage7j.sql applied.
 
 ---
 

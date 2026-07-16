@@ -26,13 +26,17 @@ export default async function TokenCreatedPage({
 
   if (!token) notFound();
 
-  const { data: product } = await supabase
-    .from("products")
-    .select("name")
-    .eq("id", token.product_id)
-    .single();
+  const { data: product } = token.product_id
+    ? await supabase
+        .from("products")
+        .select("name")
+        .eq("id", token.product_id)
+        .single()
+    : { data: null };
 
-  const productName = product?.name ?? "this product";
+  const productName =
+    product?.name ??
+    (token.category ? `Recommendation — ${token.category}` : "this recommendation");
   const shareUrl = getTokenShareUrl(code);
   const expiresAt = new Date(token.expires_at).toLocaleString();
 

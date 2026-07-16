@@ -1,23 +1,21 @@
 import type { Product, Purchase, Store, Token } from "@/types/database";
+import type { BarcodeMatchStatus } from "@/config/categories";
 import { STORE_MATCH_MAX_DISTANCE_M } from "@/config/rewards";
 import { buildTokenChain } from "@/lib/purchases/chain";
+import { resolveBarcodeMatch } from "@/lib/purchases/barcode-match";
 import { computeOriginatorToBuyerClaimGap } from "@/lib/purchases/genuineness";
 import { haversineMeters } from "@/lib/geo/haversine";
 
 export { STORE_MATCH_MAX_DISTANCE_M };
 
 export type SignalFlags = {
-  barcode_match: boolean;
+  barcode_match: BarcodeMatchStatus;
   store_match: boolean;
   within_window: boolean;
   time_to_purchase_hours: number;
   min_hop_distance_m: number | null;
   min_hop_time_minutes: number | null;
 };
-
-function normalizeBarcode(value: string) {
-  return value.replace(/\s+/g, "").trim();
-}
 
 /** Receipt timestamp when present; otherwise row created_at (legacy). */
 export function purchaseEventTime(purchase: Purchase): Date {
@@ -30,7 +28,7 @@ export function purchaseEventTime(purchase: Purchase): Date {
 export async function computePurchaseSignalFlags(input: {
   purchase: Purchase;
   token: Token;
-  product: Product;
+  product: Product | null;
   /** Originator's partner store — purchase GPS is scored against this. */
   originatorStore: Store | null;
   fetchParentToken: (parentId: string) => Promise<Token | null>;
@@ -51,9 +49,12 @@ export async function computePurchaseSignalFlags(input: {
   const within_window =
     purchasedAt.getTime() <= new Date(token.expires_at).getTime();
 
-  const barcode_match =
-    normalizeBarcode(purchase.receipt_barcode ?? "") ===
-    normalizeBarcode(product.barcode);
+  // Tri-state: not_provided when token has no barcode → no genuineness penalty.
+  const barcode_match = resolveBarcodeMatch({
+    tokenScannedBarcode: root.scanned_barcode ?? token.scanned_barcode,
+    receiptBarcode: purchase.receipt_barcode,
+    productBarcode: product?.barcode,
+  });
 
   // store_match: purchase GPS within STORE_MATCH_MAX_DISTANCE_M of originator store.
   let store_match = false;
@@ -77,7 +78,6 @@ export async function computePurchaseSignalFlags(input: {
       ) <= STORE_MATCH_MAX_DISTANCE_M;
   }
 
-  // Stored hop stats = scoring gap (originator claim ↔ buyer token claim).
   const scoringGap = computeOriginatorToBuyerClaimGap(chain);
 
   return {

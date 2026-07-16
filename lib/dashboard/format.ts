@@ -20,10 +20,12 @@ export function explainGenuineness(purchase: Purchase): string[] {
 
   reasons.push("Started at 1.0 (within window)");
 
-  if (purchase.barcode_match === false) {
+  if (purchase.barcode_match === "mismatch") {
     reasons.push(`Barcode miss × ${BARCODE_MISS_MULTIPLIER}`);
-  } else if (purchase.barcode_match === true) {
+  } else if (purchase.barcode_match === "match") {
     reasons.push("Barcode matched");
+  } else if (purchase.barcode_match === "not_provided") {
+    reasons.push("Barcode not provided — no barcode penalty");
   }
 
   if (purchase.store_match === false) {
