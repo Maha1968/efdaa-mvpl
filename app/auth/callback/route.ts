@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
+import { safeNextPath } from "@/lib/auth/next-url";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const next = safeNextPath(searchParams.get("next"), "/");
 
   if (code) {
     const supabase = await createClient();
@@ -14,5 +15,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth`);
+  return NextResponse.redirect(
+    `${origin}/login?error=auth&next=${encodeURIComponent(next)}`,
+  );
 }

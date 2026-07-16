@@ -10,7 +10,7 @@ export default async function CreateTokenPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/login?next=/create");
 
   const role = await getAppRole();
   if (role === "admin") redirect("/admin");
@@ -48,11 +48,11 @@ export default async function CreateTokenPage() {
             EFDAA
           </p>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
-            Recommend something
+            Found something you love?
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-            Photos first. Barcode is optional. We only ask for your location
-            when you are ready to share.
+            What did you discover today? Share it with friends who&apos;d love
+            it too, and you both earn EFDAA points when they buy.
           </p>
         </div>
 

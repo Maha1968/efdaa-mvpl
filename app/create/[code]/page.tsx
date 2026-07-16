@@ -45,14 +45,14 @@ export default async function TokenCreatedPage({
       <div className="mx-auto w-full max-w-md">
         <div className="mb-8 text-center">
           <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
-            Token ready
+            Ready to share
           </p>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
-            Share your offer
+            Share your find
           </h1>
           <p className="mt-2 text-sm text-zinc-600">
-            Send this link via WhatsApp. Anyone who opens it can claim, redeem,
-            or share it.
+            Send this link via WhatsApp. Friends who open it see your finds —
+            and you both earn EFDAA points when they buy.
           </p>
         </div>
 
@@ -77,7 +77,7 @@ export default async function TokenCreatedPage({
           <div>
             <p className="text-sm font-medium text-zinc-500">Expires</p>
             <p className="mt-1 text-sm text-zinc-900">
-              {expiresAt} ({TOKEN_VALIDITY_HOURS}h from creation)
+              {expiresAt} ({TOKEN_VALIDITY_HOURS}h window from originator share)
             </p>
           </div>
         </div>

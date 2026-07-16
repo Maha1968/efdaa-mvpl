@@ -5,10 +5,13 @@ import { createClient } from "@/lib/supabase/client";
 import { createPurchase } from "@/lib/actions/purchases";
 import { LocationCapture } from "@/components/location-capture";
 import { PhotoUpload } from "@/components/photo-upload";
+import { ExpiryCountdown } from "@/components/expiry-countdown";
+import { isTokenExpired } from "@/lib/tokens/helpers";
 import type { Product, Store } from "@/types/database";
 
 type RedeemFormProps = {
   tokenCode: string;
+  expiresAt: string;
   product: Product;
   originatorStore: Store | null;
   storeLabel: string;
@@ -24,6 +27,7 @@ function toDatetimeLocalValue(d: Date) {
 
 export function RedeemForm({
   tokenCode,
+  expiresAt,
   product,
   originatorStore,
   storeLabel,
@@ -43,6 +47,7 @@ export function RedeemForm({
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expired, setExpired] = useState(() => isTokenExpired(expiresAt));
 
   async function uploadReceipt(file: File) {
     const supabase = createClient();
@@ -63,6 +68,10 @@ export function RedeemForm({
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (expired) {
+      setError("This offer has expired.");
+      return;
+    }
     setError(null);
 
     const parsedAmount = Number(amount);
@@ -124,6 +133,8 @@ export function RedeemForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-28">
+      <ExpiryCountdown expiresAt={expiresAt} onExpiredChange={setExpired} />
+
       <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
         <p className="text-sm font-medium text-zinc-500">Product</p>
         <p className="mt-1 text-lg font-semibold text-zinc-900">{product.name}</p>
@@ -235,10 +246,10 @@ export function RedeemForm({
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || expired}
           className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
         >
-          {loading ? "Submitting…" : "Submit purchase"}
+          {expired ? "Offer expired" : loading ? "Submitting…" : "Submit purchase"}
         </button>
       </div>
     </form>

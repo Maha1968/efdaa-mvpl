@@ -599,6 +599,37 @@ Manual fallbacks so the pilot works with ZERO paid APIs. Mobile-first.
 SQL: supabase/schema_stage7j.sql
 ```
 
+### Stage 7L — Discovery-first tone, warm receiver screen, live countdown timer
+```
+Re-read SPEC.md. COPY/UX + a countdown timer only. Do NOT change lineage, expiry, reward, or
+genuineness logic. Keep rewards LIGHT (one soft line, no "EARN ₹X" banner); use "EFDAA points",
+never "cashback" or rupees; no recruitment/network language (this is sharing a discovery).
+
+1. CREATE SCREEN — reframe from "referral" to discovery:
+   "Found something you love?" / "What did you discover today?" — "Share it with friends who'd
+   love it too, and you both earn when they buy." Call photos "your finds", action "Share".
+
+2. RECEIVER SCREEN — when a friend opens a shared token, lead with the PERSON and their FINDS:
+   "<Sender's first name> shared something they think you'll love." Show the sender's photos as
+   the hero. Then a soft offer line. Then the existing actions.
+
+3. LOGGED-OUT ROUND-TRIP (critical — this is how share links usually break):
+   - When a logged-OUT viewer opens a share link, remember the exact token URL, send them through
+     login/signup, then RETURN them to that SAME receiver screen for that token — never to a
+     generic home page. The token must survive the whole login round-trip.
+   - After building, prove it: open a share link logged out, sign in, land back on /t/[code]
+     (sender's finds + timer), not home.
+
+4. LIVE COUNTDOWN TIMER on every opened/claimed token screen:
+   - Ticking countdown to expires_at ("Expires in 23:47:12"), updating every second.
+   - Read expiry from the token; drive the window from TOKEN_VALIDITY_HOURS — do NOT hardcode 24
+     in the UI, so changing the config later updates the clock automatically.
+   - At zero: freeze at 00:00:00, show "This offer has expired", disable claim/redeem/share
+     (matches the existing expiry rule). Same deadline for the whole chain (root's expiry).
+
+Mobile-first, warm, personal.
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -640,6 +671,9 @@ SQL: supabase/schema_stage7j.sql
       (from receipt) separately; DEMOPRX score 0.01 (~₹0.65 on ₹1299); claim never uses receipt.
 - [ ] Stage 7J: Create flow is photos-first (1–5), barcode optional, GPS on "I want to share";
       barcode_match not_provided does not apply ×0.5; schema_stage7j.sql applied.
+- [ ] Stage 7L: Create uses discovery copy ("finds" / Share); receiver leads with sender name +
+      photos + soft EFDAA points line + live countdown from expires_at; logged-out share link
+      returns to /t/[code] after login (not home); expired freezes 0:00:00 and disables actions.
 
 ---
 

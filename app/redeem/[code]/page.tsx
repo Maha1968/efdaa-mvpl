@@ -147,6 +147,7 @@ export default async function RedeemPage({ params }: PageProps) {
 
         <RedeemForm
           tokenCode={code}
+          expiresAt={token.expires_at}
           product={displayProduct}
           originatorStore={originatorStore}
           storeLabel={storeLabel ?? "Originator store"}

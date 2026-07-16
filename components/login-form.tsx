@@ -31,20 +31,27 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
 
     const supabase = createClient();
 
+    const callbackWithNext = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`;
+
     if (mode === "signup") {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { name },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: callbackWithNext,
         },
       });
 
       if (signUpError) {
         setError(signUpError.message);
+      } else if (signUpData.session) {
+        // Confirmation disabled — return to the share link (or other next).
+        window.location.href = nextUrl;
       } else {
-        setMessage("Account created. Check your email to confirm, or sign in if confirmation is off.");
+        setMessage(
+          "Account created. Check your email to confirm — you’ll return to the same offer after confirming.",
+        );
       }
     } else {
       const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -119,7 +126,9 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
           {mode === "signup" ? "Create your account" : "Welcome back"}
         </h1>
         <p className="mt-2 text-sm text-zinc-600">
-          Sign in with email or phone to start sharing tokens.
+          {nextUrl.startsWith("/t/")
+            ? "Sign in to see what your friend shared — you’ll land right back on their find."
+            : "Sign in with email or phone to continue."}
         </p>
       </div>
 

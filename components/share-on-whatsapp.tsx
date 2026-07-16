@@ -9,7 +9,7 @@ type ShareOnWhatsAppProps = {
 
 export function ShareOnWhatsApp({ code, productName }: ShareOnWhatsAppProps) {
   const shareUrl = getTokenShareUrl(code);
-  const message = `Check out ${productName} on EFDAA — open this link to claim the offer: ${shareUrl}`;
+  const message = `I found something I think you'll love — ${productName}. Open this on EFDAA: ${shareUrl}`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
 
   return (

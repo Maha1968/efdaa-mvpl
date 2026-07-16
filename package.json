@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "prove:barcode": "npx --yes tsx scripts/prove-barcode-not-provided.ts"
+    "prove:barcode": "npx --yes tsx scripts/prove-barcode-not-provided.ts",
+    "prove:share-roundtrip": "npx --yes tsx scripts/prove-share-roundtrip.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

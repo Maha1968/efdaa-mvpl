@@ -1,4 +1,5 @@
 import { LoginForm } from "@/components/login-form";
+import { safeNextPath } from "@/lib/auth/next-url";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ type PageProps = {
 
 export default async function LoginPage({ searchParams }: PageProps) {
   const { next } = await searchParams;
-  const nextUrl = next?.startsWith("/") ? next : "/";
+  const nextUrl = safeNextPath(next, "/");
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 py-10">

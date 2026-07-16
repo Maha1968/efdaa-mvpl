@@ -144,7 +144,7 @@ export function CreateTokenForm({
   async function handleWantToShare() {
     setError(null);
     if (photos.length < 1) {
-      setError("Add at least one photo of what you want to recommend.");
+      setError("Add at least one photo of your finds.");
       return;
     }
     try {
@@ -248,18 +248,18 @@ export function CreateTokenForm({
     <form onSubmit={handleSubmit} className="space-y-6 pb-28">
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">
-          What would you like to recommend?
+          What did you discover today?
         </h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Take 1–{MAX_TOKEN_PHOTOS} photos first. Location and store come only
-          when you are ready to share.
+          Add 1–{MAX_TOKEN_PHOTOS} photos of your finds. Location and store come
+          only when you are ready to share.
         </p>
       </div>
 
       {/* Product photos */}
       <div>
         <p className="mb-1.5 text-sm font-medium text-zinc-700">
-          Photos of products / a range you like
+          Your finds
         </p>
         <p className="mb-3 text-sm text-zinc-500">
           {photos.length}/{MAX_TOKEN_PHOTOS} photos
@@ -372,7 +372,7 @@ export function CreateTokenForm({
             disabled={locating || photos.length < 1}
             className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
           >
-            {locating ? "Getting location…" : "I want to share"}
+            {locating ? "Getting location…" : "Share"}
           </button>
         </div>
       ) : (
@@ -444,7 +444,7 @@ export function CreateTokenForm({
 
           <div>
             <p className="mb-1.5 text-sm font-medium text-zinc-700">
-              Store you are recommending from
+              Store where you found it
             </p>
             <p className="mb-3 text-sm text-zinc-500">
               Nearby partner stores from your GPS (or type your own). Places API
@@ -521,7 +521,7 @@ export function CreateTokenForm({
               disabled={submitting}
               className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
             >
-              {submitting ? "Creating token…" : "Create & share on WhatsApp"}
+              {submitting ? "Sharing…" : "Share"}
             </button>
           </div>
         </>

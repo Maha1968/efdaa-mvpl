@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr";
+import { safeNextPath } from "@/lib/auth/next-url";
 import { NextResponse, type NextRequest } from "next/server";
 
 const CUSTOMER_ONLY_PREFIXES = [
@@ -62,7 +63,6 @@ export async function updateSession(request: NextRequest) {
 
   if (user && isLoginPage) {
     const next = request.nextUrl.searchParams.get("next");
-    const url = request.nextUrl.clone();
     // Role-aware default home
     const { data: profile } = await supabase
       .from("users")
@@ -74,8 +74,8 @@ export async function updateSession(request: NextRequest) {
     if (profile?.role === "admin") defaultHome = "/admin";
     else if (profile?.role === "customer") defaultHome = "/";
 
-    // Admins may not land on customer-only next paths
-    let dest = next?.startsWith("/") ? next : defaultHome;
+    // Preserve share links (/t/CODE) through login; admins stay off customer surfaces
+    let dest = safeNextPath(next, defaultHome);
     if (profile?.role === "admin" && startsWithAny(dest, CUSTOMER_ONLY_PREFIXES)) {
       dest = "/admin";
     }
@@ -83,9 +83,7 @@ export async function updateSession(request: NextRequest) {
       dest = "/";
     }
 
-    url.pathname = dest;
-    url.search = "";
-    return NextResponse.redirect(url);
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
   if (user) {
