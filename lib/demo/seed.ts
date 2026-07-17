@@ -281,7 +281,7 @@ async function createTokenNode(input: {
       claim_lng: input.place.lng,
       claim_location_text: input.place.text,
       originator_store_id: input.originatorStoreId,
-      category: "Food & Grocery",
+      category: "Grocery",
       store_resolution: "matched",
       expires_at: input.expiresAt.toISOString(),
       created_at: input.at.toISOString(),

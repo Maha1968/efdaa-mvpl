@@ -48,3 +48,12 @@ export const ROLE_WEIGHTS = {
   originator: 2,
   forwarder: 1,
 } as const;
+
+/** Google Places Nearby Search radius (metres) for "Are you at X?" suggestions. */
+export const STORE_SUGGEST_RADIUS_M = 100;
+
+/** Max nearby place cards shown in the create flow. */
+export const STORE_SUGGEST_MAX_RESULTS = 5;
+
+/** Vision (category + store name) call timeout — soft fail → manual fallbacks. */
+export const VISION_TIMEOUT_MS = 5000;

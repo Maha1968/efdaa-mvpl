@@ -24,7 +24,7 @@ const originator = {
   claim_lng: 77.62448,
   claim_location_text: "Store",
   originator_store_id: "s1",
-  category: "Food & Grocery",
+  category: "Grocery",
   store_name_text: null,
   store_resolution: "matched",
   store_signage_photo_url: null,

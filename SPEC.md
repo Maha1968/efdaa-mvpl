@@ -203,6 +203,9 @@ When a purchase is marked **validated**:
 - `base_reward_pct` (also stored per offer)
 - `ZERO_SCORE_FLOOR_REWARD_PCT` = 0.001 (0.1% of purchase when score/pool is 0) — change after launch
 - `REWARD_DISPLAY_DECIMALS` = 2 — change after launch if needed
+- `STORE_SUGGEST_RADIUS_M` = 100 — Google Places nearby radius for create-flow suggestions
+- `STORE_SUGGEST_MAX_RESULTS` = 5 — max "Are you at X?" cards
+- `VISION_TIMEOUT_MS` = 5000 — soft-fail vision assist; never blocks create
 
 ---
 
@@ -640,6 +643,31 @@ Re-read SPEC.md Stage 4. When someone opens a share link that is not already the
 Do NOT change lineage depth/expiry, reward, or genuineness math.
 ```
 
+### Stage 8A — Smart category + store detection from photos, with "Are you at X?" fallback
+```
+Re-read SPEC.md. This UPGRADES the Stage 7J create flow with smart assists. Do NOT change
+lineage, expiry, depth, reward, proximity, or genuineness logic. Do NOT change any database
+columns — we already have `category`, `originator_store_id`, `store_name_text`, and
+`store_resolution`; this stage only fills them more intelligently. All existing manual
+fallbacks must keep working if the APIs fail or keys are missing. Never block token creation
+on any smart assist.
+
+PART 1 — ONE VISION CALL (Anthropic claude-sonnet-4-6, SERVER `/api/vision/detect`):
+- On "Share", send the 1–5 photos; reply JSON: category (from TOKEN_CATEGORIES),
+  visible_store_name, store_name_confidence high|low. Soft-fail → dropdown.
+- Pre-select category labelled "Suggested — tap to change".
+
+PART 2 — Google Places Nearby Search (SERVER `/api/places/nearby`):
+- Radius STORE_SUGGEST_RADIUS_M (100), max STORE_SUGGEST_MAX_RESULTS (5), type map in
+  config/categories.ts CATEGORY_PLACE_TYPES.
+- Auto-match photo store name to a nearby Place → "You're at: …" card + ALWAYS show
+  "Not here? Choose another store" (never lock). Else "Are you at one of these?" + Other.
+- Selection → matched (partner) / suggested (Google) / user_entered (typed). Soft-fail →
+  manual field (+ optional "Looks like: …" from vision).
+
+Keys: ANTHROPIC_API_KEY, GOOGLE_MAPS_API_KEY in .env.local (and Vercel). Never expose to browser.
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -686,6 +714,8 @@ Do NOT change lineage depth/expiry, reward, or genuineness math.
       returns to /t/[code] after login (not home); expired freezes 0:00:00 and disables actions.
 - [ ] Stage 7M: Opening a friend's link requires location claim before finds/Share/Redeem;
       after claim both Share and Redeem are equal (redeem once); same timer for both.
+- [ ] Stage 8A: Create flow vision suggests category + visible store; Places nearby + auto-match
+      with always-visible "Not here?"; without API keys, manual category/store still creates.
 
 ---
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { createOriginatorToken } from "@/lib/actions/tokens";
 import { PhotoUpload } from "@/components/photo-upload";
@@ -9,6 +9,7 @@ import {
   TOKEN_CATEGORIES,
   type StoreResolution,
 } from "@/config/categories";
+import type { NearbyPlaceSuggestion } from "@/lib/places/types";
 import type { Offer, Store } from "@/types/database";
 
 type CreateTokenFormProps = {
@@ -19,21 +20,12 @@ type CreateTokenFormProps = {
 
 type Step = "photos" | "share";
 
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-) {
-  const R = 6371;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
+/** How the user is picking the store in the share step. */
+type StoreUi =
+  | { mode: "auto"; place: NearbyPlaceSuggestion }
+  | { mode: "list" }
+  | { mode: "other" }
+  | { mode: "manual" }; // Places failed / empty — free text (+ optional vision prefill)
 
 export function CreateTokenForm({
   offers,
@@ -46,32 +38,24 @@ export function CreateTokenForm({
   const [barcodeText, setBarcodeText] = useState("");
   const [signagePhoto, setSignagePhoto] = useState<File | null>(null);
   const [category, setCategory] = useState<string>(TOKEN_CATEGORIES[0]);
+  const [categorySuggested, setCategorySuggested] = useState(false);
   const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     null,
   );
-  const [storeId, setStoreId] = useState("");
+  const [nearbyPlaces, setNearbyPlaces] = useState<NearbyPlaceSuggestion[]>(
+    [],
+  );
+  const [selectedPlace, setSelectedPlace] =
+    useState<NearbyPlaceSuggestion | null>(null);
   const [storeNameText, setStoreNameText] = useState("");
-  const [storeMode, setStoreMode] = useState<"pick" | "type">("pick");
+  const [storeUi, setStoreUi] = useState<StoreUi>({ mode: "manual" });
+  const [visionStoreName, setVisionStoreName] = useState<string | null>(null);
   const [locating, setLocating] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const multiInputRef = useRef<HTMLInputElement>(null);
-
-  const nearbyStores = useMemo(() => {
-    if (!coords) return stores.slice(0, 3);
-    return [...stores]
-      .map((s) => ({
-        store: s,
-        km:
-          s.lat != null && s.lng != null
-            ? haversineKm(coords.lat, coords.lng, s.lat, s.lng)
-            : Number.POSITIVE_INFINITY,
-      }))
-      .sort((a, b) => a.km - b.km)
-      .slice(0, 3)
-      .map((x) => x.store);
-  }, [coords, stores]);
 
   function addPhotos(fileList: FileList | null) {
     if (!fileList?.length) return;
@@ -141,22 +125,121 @@ export function CreateTokenForm({
     return publicUrl;
   }
 
+  async function runVision(files: File[]) {
+    const form = new FormData();
+    for (const f of files) form.append("photo", f);
+    try {
+      const res = await fetch("/api/vision/detect", {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as {
+        ok: boolean;
+        category: string | null;
+        visible_store_name: string | null;
+        store_name_confidence: "high" | "low" | null;
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function runPlaces(input: {
+    lat: number;
+    lng: number;
+    category: string;
+    visibleStoreName: string | null;
+  }) {
+    try {
+      const res = await fetch("/api/places/nearby", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as {
+        ok: boolean;
+        places: NearbyPlaceSuggestion[];
+        autoMatch: NearbyPlaceSuggestion | null;
+      };
+    } catch {
+      return null;
+    }
+  }
+
   async function handleWantToShare() {
     setError(null);
     if (photos.length < 1) {
       setError("Add at least one photo of your finds.");
       return;
     }
+
+    setAnalyzing(true);
     try {
-      const c = coords ?? (await captureLocation());
-      setCoords(c);
-      if (!storeId && nearbyStores[0]) {
-        setStoreId(nearbyStores[0].id);
-        setStoreMode("pick");
+      const visionFiles = signagePhoto
+        ? [...photos, signagePhoto].slice(0, MAX_TOKEN_PHOTOS)
+        : photos;
+
+      // GPS + vision in parallel — neither blocks the other; soft-fail vision.
+      const [location, vision] = await Promise.all([
+        coords ? Promise.resolve(coords) : captureLocation(),
+        runVision(visionFiles),
+      ]);
+      setCoords(location);
+
+      let nextCategory = category;
+      let visibleName: string | null = null;
+      if (vision?.ok) {
+        if (vision.category) {
+          nextCategory = vision.category;
+          setCategory(vision.category);
+          setCategorySuggested(true);
+        }
+        visibleName = vision.visible_store_name;
+        setVisionStoreName(visibleName);
+      } else {
+        setCategorySuggested(false);
+        setVisionStoreName(null);
       }
+
+      const placesResult = await runPlaces({
+        lat: location.lat,
+        lng: location.lng,
+        category: nextCategory,
+        visibleStoreName: visibleName,
+      });
+
+      const places = placesResult?.places ?? [];
+      setNearbyPlaces(places);
+
+      if (placesResult?.autoMatch) {
+        setSelectedPlace(placesResult.autoMatch);
+        setStoreUi({ mode: "auto", place: placesResult.autoMatch });
+        setStoreNameText("");
+      } else if (places.length > 0) {
+        setSelectedPlace(null);
+        setStoreUi({ mode: "list" });
+        setStoreNameText("");
+      } else if (visibleName) {
+        setSelectedPlace(null);
+        setStoreUi({ mode: "manual" });
+        setStoreNameText("");
+        // Offer one-tap prefill via UI button — keep field empty until they tap
+      } else {
+        setSelectedPlace(null);
+        setStoreUi({ mode: "manual" });
+        // Fallback: nearest partner store name hint not required — free text
+        if (!storeNameText && stores[0]) {
+          // leave empty; user types
+        }
+      }
+
       setStep("share");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not get location.");
+    } finally {
+      setAnalyzing(false);
     }
   }
 
@@ -191,16 +274,29 @@ export function CreateTokenForm({
     let originatorStoreId: string | undefined;
     let storeName: string | undefined;
 
-    if (storeMode === "pick" && storeId) {
-      originatorStoreId = storeId;
-      resolution = nearbyStores.some((s) => s.id === storeId)
-        ? "suggested"
-        : "matched";
+    if (selectedPlace) {
+      if (selectedPlace.partnerStoreId) {
+        originatorStoreId = selectedPlace.partnerStoreId;
+        resolution = "matched";
+      } else {
+        storeName = selectedPlace.name;
+        resolution = "suggested";
+      }
     } else if (storeNameText.trim()) {
-      storeName = storeNameText.trim();
-      resolution = "user_entered";
+      // Typed name — still try partner name match
+      const typed = storeNameText.trim();
+      const partner = stores.find(
+        (s) => s.name.trim().toLowerCase() === typed.toLowerCase(),
+      );
+      if (partner) {
+        originatorStoreId = partner.id;
+        resolution = "matched";
+      } else {
+        storeName = typed;
+        resolution = "user_entered";
+      }
     } else {
-      setError("Pick a store from the list or type the store name.");
+      setError("Pick a store or type the store name.");
       return;
     }
 
@@ -244,6 +340,8 @@ export function CreateTokenForm({
     }
   }
 
+  const busy = locating || analyzing;
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-28">
       <div>
@@ -256,11 +354,8 @@ export function CreateTokenForm({
         </p>
       </div>
 
-      {/* Product photos */}
       <div>
-        <p className="mb-1.5 text-sm font-medium text-zinc-700">
-          Your finds
-        </p>
+        <p className="mb-1.5 text-sm font-medium text-zinc-700">Your finds</p>
         <p className="mb-3 text-sm text-zinc-500">
           {photos.length}/{MAX_TOKEN_PHOTOS} photos
         </p>
@@ -369,10 +464,14 @@ export function CreateTokenForm({
           <button
             type="button"
             onClick={handleWantToShare}
-            disabled={locating || photos.length < 1}
+            disabled={busy || photos.length < 1}
             className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
           >
-            {locating ? "Getting location…" : "Share"}
+            {locating
+              ? "Getting location…"
+              : analyzing
+                ? "Looking at your photos…"
+                : "Share"}
           </button>
         </div>
       ) : (
@@ -388,7 +487,9 @@ export function CreateTokenForm({
             ) : null}
             <button
               type="button"
-              onClick={() => captureLocation().catch((e) => setError(e.message))}
+              onClick={() =>
+                captureLocation().catch((e) => setError(e.message))
+              }
               className="mt-2 text-sm font-medium text-emerald-800 underline"
             >
               Update location
@@ -403,12 +504,17 @@ export function CreateTokenForm({
               Category
             </label>
             <p className="mb-2 text-sm text-zinc-500">
-              Manual pick for the pilot (vision API optional later).
+              {categorySuggested
+                ? "Suggested — tap to change"
+                : "Pick the best match (or wait for a photo suggestion next time)."}
             </p>
             <select
               id="category"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                setCategorySuggested(false);
+              }}
               className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             >
               {TOKEN_CATEGORIES.map((c) => (
@@ -419,94 +525,157 @@ export function CreateTokenForm({
             </select>
           </div>
 
-          {offers.length > 1 ? (
-            <div>
-              <label
-                htmlFor="offer"
-                className="mb-1.5 block text-sm font-medium text-zinc-700"
-              >
-                Offer
-              </label>
-              <select
-                id="offer"
-                value={offerId}
-                onChange={(e) => setOfferId(e.target.value)}
-                className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base"
-              >
-                {offers.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {o.name} ({(o.base_reward_pct * 100).toFixed(0)}%)
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
           <div>
             <p className="mb-1.5 text-sm font-medium text-zinc-700">
               Store where you found it
             </p>
-            <p className="mb-3 text-sm text-zinc-500">
-              Nearby partner stores from your GPS (or type your own). Places API
-              is optional — this list works offline.
-            </p>
 
-            <div className="mb-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setStoreMode("pick")}
-                className={`min-h-10 flex-1 rounded-xl px-3 text-sm font-medium ${
-                  storeMode === "pick"
-                    ? "bg-emerald-700 text-white"
-                    : "border border-zinc-300 bg-white text-zinc-700"
-                }`}
-              >
-                Nearby stores
-              </button>
-              <button
-                type="button"
-                onClick={() => setStoreMode("type")}
-                className={`min-h-10 flex-1 rounded-xl px-3 text-sm font-medium ${
-                  storeMode === "type"
-                    ? "bg-emerald-700 text-white"
-                    : "border border-zinc-300 bg-white text-zinc-700"
-                }`}
-              >
-                Type store name
-              </button>
-            </div>
+            {storeUi.mode === "auto" ? (
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">
+                    You&apos;re at
+                  </p>
+                  <p className="mt-1 text-base font-semibold text-zinc-900">
+                    {storeUi.place.name}
+                    {storeUi.place.address
+                      ? ` — ${storeUi.place.address}`
+                      : ""}
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-600">
+                    {storeUi.place.distanceM}m away
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStoreUi({ mode: "list" });
+                    setSelectedPlace(null);
+                  }}
+                  className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-800"
+                >
+                  Not here? Choose another store
+                </button>
+              </div>
+            ) : null}
 
-            {storeMode === "pick" ? (
-              <select
-                value={storeId}
-                onChange={(e) => setStoreId(e.target.value)}
-                className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base"
-              >
-                <option value="">Select a store…</option>
-                {nearbyStores.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                    {s.address ? ` — ${s.address}` : ""}
-                  </option>
-                ))}
-                {stores
-                  .filter((s) => !nearbyStores.some((n) => n.id === s.id))
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                      {s.address ? ` — ${s.address}` : ""}
-                    </option>
-                  ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={storeNameText}
-                onChange={(e) => setStoreNameText(e.target.value)}
-                placeholder="e.g. MG Road Store"
-                className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base"
-              />
-            )}
+            {storeUi.mode === "list" ? (
+              <div className="space-y-2">
+                <p className="mb-2 text-sm text-zinc-500">
+                  Are you at one of these?
+                </p>
+                {nearbyPlaces.map((p) => {
+                  const selected = selectedPlace?.placeId === p.placeId;
+                  return (
+                    <button
+                      key={p.placeId}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPlace(p);
+                        setStoreNameText("");
+                      }}
+                      className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors ${
+                        selected
+                          ? "border-emerald-600 bg-emerald-50"
+                          : "border-zinc-200 bg-white hover:border-zinc-300"
+                      }`}
+                    >
+                      <p className="font-medium text-zinc-900">{p.name}</p>
+                      <p className="mt-0.5 text-sm text-zinc-500">
+                        {p.distanceM}m away
+                        {p.address ? ` · ${p.address}` : ""}
+                        {p.partnerStoreId ? " · partner store" : ""}
+                      </p>
+                    </button>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStoreUi({ mode: "other" });
+                    setSelectedPlace(null);
+                  }}
+                  className="w-full rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-left text-sm font-medium text-zinc-700"
+                >
+                  Other / not listed
+                </button>
+              </div>
+            ) : null}
+
+            {storeUi.mode === "other" || storeUi.mode === "manual" ? (
+              <div className="space-y-3">
+                {storeUi.mode === "manual" && visionStoreName ? (
+                  <button
+                    type="button"
+                    onClick={() => setStoreNameText(visionStoreName)}
+                    className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm text-emerald-900"
+                  >
+                    Looks like: <span className="font-semibold">{visionStoreName}</span>{" "}
+                    — tap to use
+                  </button>
+                ) : null}
+                {storeUi.mode === "other" && nearbyPlaces.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setStoreUi({ mode: "list" })}
+                    className="text-sm font-medium text-emerald-800 underline"
+                  >
+                    ← Back to nearby list
+                  </button>
+                ) : null}
+                <input
+                  type="text"
+                  value={storeNameText}
+                  onChange={(e) => {
+                    setStoreNameText(e.target.value);
+                    setSelectedPlace(null);
+                  }}
+                  placeholder="e.g. Body Shop, Phoenix Mall"
+                  className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base"
+                />
+                {/* Partner-only fallback when Places is empty */}
+                {storeUi.mode === "manual" && stores.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-zinc-500">
+                      Or pick a partner store
+                    </p>
+                    {stores.slice(0, 5).map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedPlace({
+                            placeId: `partner:${s.id}`,
+                            name: s.name,
+                            address: s.address,
+                            lat: s.lat ?? 0,
+                            lng: s.lng ?? 0,
+                            distanceM: 0,
+                            partnerStoreId: s.id,
+                          });
+                          setStoreNameText("");
+                          setStoreUi({
+                            mode: "auto",
+                            place: {
+                              placeId: `partner:${s.id}`,
+                              name: s.name,
+                              address: s.address,
+                              lat: s.lat ?? 0,
+                              lng: s.lng ?? 0,
+                              distanceM: 0,
+                              partnerStoreId: s.id,
+                            },
+                          });
+                        }}
+                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-left text-sm text-zinc-800"
+                      >
+                        {s.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
           {error ? (
