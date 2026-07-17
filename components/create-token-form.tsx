@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { createOriginatorToken } from "@/lib/actions/tokens";
-import { PhotoUpload } from "@/components/photo-upload";
 import {
   MAX_TOKEN_PHOTOS,
   TOKEN_CATEGORIES,
@@ -65,9 +64,6 @@ export function CreateTokenForm({
 }: CreateTokenFormProps) {
   const [step, setStep] = useState<Step>("photos");
   const [photos, setPhotos] = useState<File[]>([]);
-  const [barcodePhoto, setBarcodePhoto] = useState<File | null>(null);
-  const [barcodeText, setBarcodeText] = useState("");
-  const [signagePhoto, setSignagePhoto] = useState<File | null>(null);
   const [category, setCategory] = useState<string>("");
   const [categorySuggested, setCategorySuggested] = useState(false);
   const [visionHint, setVisionHint] = useState<string | null>(null);
@@ -211,9 +207,7 @@ export function CreateTokenForm({
 
     setAnalyzing(true);
     try {
-      const visionFiles = signagePhoto
-        ? [...photos, signagePhoto].slice(0, MAX_TOKEN_PHOTOS)
-        : photos;
+      const visionFiles = photos;
 
       // GPS + vision in parallel — neither blocks the other; soft-fail vision.
       const [location, vision] = await Promise.all([
@@ -342,18 +336,9 @@ export function CreateTokenForm({
       const photoUrls = await Promise.all(
         photos.map((f) => uploadPhoto("product-photos", f)),
       );
-      const barcodePhotoUrl = barcodePhoto
-        ? await uploadPhoto("barcode-photos", barcodePhoto)
-        : undefined;
-      const storeSignagePhotoUrl = signagePhoto
-        ? await uploadPhoto("product-photos", signagePhoto)
-        : undefined;
 
       const result = await createOriginatorToken({
         photoUrls,
-        scannedBarcode: barcodeText.trim() || undefined,
-        barcodePhotoUrl,
-        storeSignagePhotoUrl,
         category,
         claimLat: location.lat,
         claimLng: location.lng,
@@ -386,8 +371,10 @@ export function CreateTokenForm({
           What did you discover today?
         </h2>
         <p className="mt-1 text-sm text-zinc-600">
-          Add 1–{MAX_TOKEN_PHOTOS} photos of your finds. Location and store come
-          only when you are ready to share.
+          Add 1–{MAX_TOKEN_PHOTOS} photos of your finds. Where possible, include
+          a photo of the retail store name or frontage where you are — it could
+          be on a product tag, a pillar, or signage. Location comes only when
+          you are ready to share.
         </p>
       </div>
 
@@ -459,42 +446,6 @@ export function CreateTokenForm({
           ) : null}
         </div>
       </div>
-
-      <PhotoUpload
-        id="barcode-photo-optional"
-        label="Scan / add barcode (optional)"
-        hint="Never required. Leaving this out does not lower the genuineness score."
-        value={barcodePhoto}
-        onChange={setBarcodePhoto}
-      />
-
-      {barcodePhoto || barcodeText ? (
-        <div>
-          <label
-            htmlFor="barcode-text"
-            className="mb-1.5 block text-sm font-medium text-zinc-700"
-          >
-            Barcode number (optional)
-          </label>
-          <input
-            id="barcode-text"
-            type="text"
-            inputMode="numeric"
-            value={barcodeText}
-            onChange={(e) => setBarcodeText(e.target.value)}
-            placeholder="Only if you scanned one"
-            className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-          />
-        </div>
-      ) : null}
-
-      <PhotoUpload
-        id="store-signage-optional"
-        label="Add a photo of the store name (optional)"
-        hint="Storefront or signage — helpful but not required."
-        value={signagePhoto}
-        onChange={setSignagePhoto}
-      />
 
       {step === "photos" ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
