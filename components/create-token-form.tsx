@@ -270,10 +270,6 @@ export function CreateTokenForm({
       } else {
         setSelectedPlace(null);
         setStoreUi({ mode: "manual" });
-        // Fallback: nearest partner store name hint not required — free text
-        if (!storeNameText && stores[0]) {
-          // leave empty; user types
-        }
       }
 
       setStep("share");
@@ -679,46 +675,10 @@ export function CreateTokenForm({
                   placeholder="e.g. Body Shop, Phoenix Mall"
                   className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base"
                 />
-                {/* Partner-only fallback when Places is empty */}
-                {storeUi.mode === "manual" && stores.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-xs text-zinc-500">
-                      Or pick a partner store
-                    </p>
-                    {stores.slice(0, 5).map((s) => (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedPlace({
-                            placeId: `partner:${s.id}`,
-                            name: s.name,
-                            address: s.address,
-                            lat: s.lat ?? 0,
-                            lng: s.lng ?? 0,
-                            distanceM: 0,
-                            partnerStoreId: s.id,
-                          });
-                          setStoreNameText("");
-                          setStoreUi({
-                            mode: "auto",
-                            place: {
-                              placeId: `partner:${s.id}`,
-                              name: s.name,
-                              address: s.address,
-                              lat: s.lat ?? 0,
-                              lng: s.lng ?? 0,
-                              distanceM: 0,
-                              partnerStoreId: s.id,
-                            },
-                          });
-                        }}
-                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-left text-sm text-zinc-800"
-                      >
-                        {s.name}
-                      </button>
-                    ))}
-                  </div>
+                {storeUi.mode === "manual" ? (
+                  <p className="text-xs text-zinc-500">
+                    No stores found nearby — type the store name.
+                  </p>
                 ) : null}
               </div>
             ) : null}
