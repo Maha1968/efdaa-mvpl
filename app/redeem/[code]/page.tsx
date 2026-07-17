@@ -32,6 +32,15 @@ export default async function RedeemPage({ params }: PageProps) {
 
   if (!token) notFound();
 
+  // Redeem only on a token you have claimed (you are the holder).
+  if (token.holder_user_id !== user.id) {
+    redirect(`/t/${code}`);
+  }
+
+  if (token.depth === 0) {
+    redirect(`/t/${code}`);
+  }
+
   if (isTokenExpired(token.expires_at)) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">

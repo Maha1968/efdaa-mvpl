@@ -290,14 +290,13 @@ code. Mobile-first. Do not use any paid maps service — just raw coordinates.
 ### Stage 4 — Claim a token: capture location, then Redeem / Forward / Both
 ```
 Build the screen shown when a person opens a shared token link. First check expiry: if now is past
-expires_at, show "This offer has expired" and stop. Otherwise show a "Claim" step that captures the
-person's current GPS location + time (browser Geolocation, ask permission) and an OPTIONAL
-place-name field. After claiming, offer three choices: Redeem, Forward, or Redeem + Forward.
-- Forward: create a NEW token with parent_token_id = the received token, root_token_id = parent's
-  root, depth = parent.depth + 1, expires_at = parent's expires_at, and claim_lat/lng + created_at
-  set to this claimer's captured location + time. Block if depth would exceed 4 ("This chain has
-  reached its maximum length"). Then show a WhatsApp share button.
-- Redeem: go to the purchase flow (next stage).
+expires_at, show "This offer has expired" and stop. Otherwise show a **Claim** step FIRST —
+mandatory GPS ("Share your location") before the finds, Redeem, or Share are available. Without
+location, the recommendation stays locked. After claiming, create the claimer's own child token
+(parent = received, root/expiry inherited, claim_lat/lng + created_at = claimer) and unlock:
+- **Share** and **Redeem** as equal actions for the same TOKEN_VALIDITY_HOURS window.
+- Redeem once; Share (WhatsApp of the claimer's token) as often as they like.
+- Block new claims/forwards if depth would exceed 4.
 Every new token must remember its parent, root, expiry, and the claimer's location + time.
 ```
 
@@ -630,6 +629,17 @@ never "cashback" or rupees; no recruitment/network language (this is sharing a d
 Mobile-first, warm, personal.
 ```
 
+### Stage 7M — Claim-first gate (location before finds / Share / Redeem)
+```
+Re-read SPEC.md Stage 4. When someone opens a share link that is not already theirs:
+1. Do NOT show finds, Redeem, or Share until they claim with mandatory GPS ("Share your location").
+2. Claim creates their child token (their claim_lat/lng + time) and unlocks the recommendation.
+3. After claim: Share and Redeem are equal CTAs for the same expiry window; Redeem once;
+   Share (WhatsApp of their claimed token) unlimited. Share does not require redeeming first.
+4. Re-opening the parent link redirects to their already-claimed child token.
+Do NOT change lineage depth/expiry, reward, or genuineness math.
+```
+
 ---
 
 ## 8. Testing checklist (do after each stage)
@@ -674,6 +684,8 @@ Mobile-first, warm, personal.
 - [ ] Stage 7L: Create uses discovery copy ("finds" / Share); receiver leads with sender name +
       photos + soft EFDAA points line + live countdown from expires_at; logged-out share link
       returns to /t/[code] after login (not home); expired freezes 0:00:00 and disables actions.
+- [ ] Stage 7M: Opening a friend's link requires location claim before finds/Share/Redeem;
+      after claim both Share and Redeem are equal (redeem once); same timer for both.
 
 ---
 

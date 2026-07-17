@@ -138,18 +138,32 @@ export async function createOriginatorToken(input: CreateTokenInput) {
   return { error: "Could not generate a unique token code. Please try again." };
 }
 
-export async function forwardToken(input: ForwardTokenInput) {
+/**
+ * Claim a shared token: mandatory GPS stamp. Creates the claimer's own child token
+ * (with their claim_lat/lng + time) so Redeem / Share use the claimer's location.
+ * If they already claimed this parent, returns their existing child code.
+ */
+export async function claimToken(input: ForwardTokenInput) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "You must be signed in to forward a token." };
+    return { error: "You must be signed in to claim a token." };
   }
 
   if (await isAdminUser()) {
     return { error: "Administrators cannot share or claim tokens." };
+  }
+
+  if (
+    input.claimLat == null ||
+    input.claimLng == null ||
+    Number.isNaN(input.claimLat) ||
+    Number.isNaN(input.claimLng)
+  ) {
+    return { error: "Share your location to claim this find." };
   }
 
   const { data: parent, error: parentError } = await supabase
@@ -162,12 +176,29 @@ export async function forwardToken(input: ForwardTokenInput) {
     return { error: "Token not found." };
   }
 
+  if (parent.holder_user_id === user.id) {
+    return { code: parent.code };
+  }
+
   if (new Date(parent.expires_at).getTime() <= Date.now()) {
     return { error: "This offer has expired." };
   }
 
   if (parent.depth >= 4) {
     return { error: "This chain has reached its maximum length." };
+  }
+
+  const { data: existing } = await supabase
+    .from("tokens")
+    .select("code")
+    .eq("parent_token_id", parent.id)
+    .eq("holder_user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing?.code) {
+    return { code: existing.code };
   }
 
   let code = generateTokenCode();
@@ -230,15 +261,70 @@ export async function forwardToken(input: ForwardTokenInput) {
       eventType: "claimed",
       actorUserId: user.id,
     });
-    await logReferralEvent({
-      tokenId: child.id,
-      eventType: "shared",
-      actorUserId: user.id,
-      meta: { parent_code: parent.code },
-    });
 
     return { code: child.code };
   }
 
   return { error: "Could not generate a unique token code. Please try again." };
+}
+
+/** @deprecated Prefer claimToken then Share on WhatsApp. Kept for any old callers. */
+export async function forwardToken(input: ForwardTokenInput) {
+  const result = await claimToken(input);
+  if (result.error || !result.code) return result;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return result;
+
+  const { data: child } = await supabase
+    .from("tokens")
+    .select("id")
+    .eq("code", result.code)
+    .maybeSingle();
+
+  if (child) {
+    await logReferralEvent({
+      tokenId: child.id,
+      eventType: "shared",
+      actorUserId: user.id,
+      meta: { parent_code: input.parentCode },
+    });
+  }
+
+  return result;
+}
+
+export async function markTokenShared(code: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const { data: token } = await supabase
+    .from("tokens")
+    .select("id, parent_token_id")
+    .eq("code", code)
+    .eq("holder_user_id", user.id)
+    .maybeSingle();
+
+  if (!token) return;
+
+  const { data: parent } = token.parent_token_id
+    ? await supabase
+        .from("tokens")
+        .select("code")
+        .eq("id", token.parent_token_id)
+        .maybeSingle()
+    : { data: null };
+
+  await logReferralEvent({
+    tokenId: token.id,
+    eventType: "shared",
+    actorUserId: user.id,
+    meta: parent?.code ? { parent_code: parent.code } : undefined,
+  });
 }

@@ -19,7 +19,6 @@ export default async function TokenLandingPage({ params }: PageProps) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    // Public preview: service role so finds + timer show before login.
     let payload;
     try {
       payload = await loadReceiverPayload(createServiceClient(), code);
@@ -39,8 +38,9 @@ export default async function TokenLandingPage({ params }: PageProps) {
               offer: payload.offer,
             }}
             alreadyRedeemed={false}
-            photos={payload.photos}
+            photos={[]}
             senderFirstName={payload.senderFirstName}
+            needsClaim
             previewOnly
             signInHref={`/login?next=${encodeURIComponent(`/t/${code}`)}`}
           />
@@ -60,10 +60,47 @@ export default async function TokenLandingPage({ params }: PageProps) {
     actorUserId: user.id,
   });
 
+  const isHolder = payload.token.holder_user_id === user.id;
+
+  // Opening someone else's link: if we already claimed, go to our child token.
+  if (!isHolder) {
+    const { data: existingChild } = await supabase
+      .from("tokens")
+      .select("code")
+      .eq("parent_token_id", payload.token.id)
+      .eq("holder_user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingChild?.code) {
+      redirect(`/t/${existingChild.code}`);
+    }
+  }
+
   const alreadyRedeemed = await hasTokenBeenRedeemed(
     supabase,
     payload.token.id,
   );
+
+  // Sender first name for a claimed token: the parent holder (who shared it).
+  let senderFirstName = payload.senderFirstName;
+  if (isHolder && payload.token.parent_token_id) {
+    const { data: parent } = await supabase
+      .from("tokens")
+      .select("holder_user_id")
+      .eq("id", payload.token.parent_token_id)
+      .maybeSingle();
+    if (parent?.holder_user_id) {
+      const { data: parentUser } = await supabase
+        .from("users")
+        .select("name")
+        .eq("id", parent.holder_user_id)
+        .maybeSingle();
+      const first = parentUser?.name?.trim().split(/\s+/)[0];
+      if (first) senderFirstName = first;
+    }
+  }
 
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
@@ -75,8 +112,9 @@ export default async function TokenLandingPage({ params }: PageProps) {
             offer: payload.offer,
           }}
           alreadyRedeemed={alreadyRedeemed}
-          photos={payload.photos}
-          senderFirstName={payload.senderFirstName}
+          photos={isHolder ? payload.photos : []}
+          senderFirstName={senderFirstName}
+          needsClaim={!isHolder}
         />
       </div>
     </main>

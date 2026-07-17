@@ -51,9 +51,9 @@ export function LocationCapture({
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-      <p className="text-sm font-medium text-zinc-700">Your location</p>
+      <p className="text-sm font-medium text-zinc-700">Share your location</p>
       <p className="mt-1 text-xs text-zinc-500">
-        GPS coordinates are captured when you claim — no maps service needed.
+        Required to claim this find — GPS only, no maps service.
       </p>
 
       <button
@@ -66,7 +66,7 @@ export function LocationCapture({
           ? "Getting location…"
           : coords
             ? "Update location"
-            : "Capture my location"}
+            : "Share your location"}
       </button>
 
       {locating && (
