@@ -205,7 +205,7 @@ When a purchase is marked **validated**:
 - `REWARD_DISPLAY_DECIMALS` = 2 — change after launch if needed
 - `STORE_SUGGEST_RADIUS_M` = 100 — Google Places nearby radius for create-flow suggestions
 - `STORE_SUGGEST_MAX_RESULTS` = 5 — max "Are you at X?" cards
-- `VISION_TIMEOUT_MS` = 5000 — soft-fail vision assist; never blocks create
+- `VISION_TIMEOUT_MS` = 20000 — soft-fail vision assist; never blocks create
 
 ---
 

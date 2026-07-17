@@ -40,8 +40,8 @@ export async function POST(request: Request) {
   for (const file of files) {
     try {
       const buf = Buffer.from(await file.arrayBuffer());
-      // Cap ~1.5MB per image in base64 payload to keep vision call small
-      if (buf.length > 1_800_000) continue;
+      // Cap ~4MB raw; client also compresses — still skip absurd payloads
+      if (buf.length > 4_000_000) continue;
       images.push({
         mediaType: file.type || "image/jpeg",
         base64: buf.toString("base64"),

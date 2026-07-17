@@ -56,4 +56,4 @@ export const STORE_SUGGEST_RADIUS_M = 100;
 export const STORE_SUGGEST_MAX_RESULTS = 5;
 
 /** Vision (category + store name) call timeout — soft fail → manual fallbacks. */
-export const VISION_TIMEOUT_MS = 5000;
+export const VISION_TIMEOUT_MS = 20000;

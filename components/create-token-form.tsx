@@ -27,6 +27,37 @@ type StoreUi =
   | { mode: "other" }
   | { mode: "manual" }; // Places failed / empty — free text (+ optional vision prefill)
 
+/** Shrink camera photos so vision can accept them (phones often shoot 3–8MB). */
+async function compressImageForVision(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return file;
+  if (file.size < 900_000) return file;
+
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxEdge = 1280;
+    const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.72),
+    );
+    if (!blob) return file;
+    return new File([blob], file.name.replace(/\.\w+$/, ".jpg"), {
+      type: "image/jpeg",
+    });
+  } catch {
+    return file;
+  }
+}
+
 export function CreateTokenForm({
   offers,
   stores,
@@ -37,8 +68,9 @@ export function CreateTokenForm({
   const [barcodePhoto, setBarcodePhoto] = useState<File | null>(null);
   const [barcodeText, setBarcodeText] = useState("");
   const [signagePhoto, setSignagePhoto] = useState<File | null>(null);
-  const [category, setCategory] = useState<string>(TOKEN_CATEGORIES[0]);
+  const [category, setCategory] = useState<string>("");
   const [categorySuggested, setCategorySuggested] = useState(false);
+  const [visionHint, setVisionHint] = useState<string | null>(null);
   const [offerId, setOfferId] = useState(offers[0]?.id ?? "");
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     null,
@@ -127,7 +159,8 @@ export function CreateTokenForm({
 
   async function runVision(files: File[]) {
     const form = new FormData();
-    for (const f of files) form.append("photo", f);
+    const compressed = await Promise.all(files.map(compressImageForVision));
+    for (const f of compressed) form.append("photo", f);
     try {
       const res = await fetch("/api/vision/detect", {
         method: "POST",
@@ -139,6 +172,7 @@ export function CreateTokenForm({
         category: string | null;
         visible_store_name: string | null;
         store_name_confidence: "high" | "low" | null;
+        error?: string;
       };
     } catch {
       return null;
@@ -190,23 +224,30 @@ export function CreateTokenForm({
 
       let nextCategory = category;
       let visibleName: string | null = null;
-      if (vision?.ok) {
-        if (vision.category) {
-          nextCategory = vision.category;
-          setCategory(vision.category);
-          setCategorySuggested(true);
-        }
+      if (vision?.ok && vision.category) {
+        nextCategory = vision.category;
+        setCategory(vision.category);
+        setCategorySuggested(true);
+        setVisionHint(null);
+        visibleName = vision.visible_store_name;
+        setVisionStoreName(visibleName);
+      } else if (vision?.ok) {
+        setCategorySuggested(false);
+        setVisionHint("No clear category from the photo — please pick one.");
         visibleName = vision.visible_store_name;
         setVisionStoreName(visibleName);
       } else {
         setCategorySuggested(false);
+        setVisionHint(
+          "Couldn't auto-detect from the photo — pick a category manually.",
+        );
         setVisionStoreName(null);
       }
 
       const placesResult = await runPlaces({
         lat: location.lat,
         lng: location.lng,
-        category: nextCategory,
+        category: nextCategory || "Other",
         visibleStoreName: visibleName,
       });
 
@@ -506,17 +547,22 @@ export function CreateTokenForm({
             <p className="mb-2 text-sm text-zinc-500">
               {categorySuggested
                 ? "Suggested — tap to change"
-                : "Pick the best match (or wait for a photo suggestion next time)."}
+                : visionHint ?? "Pick the category that fits your find."}
             </p>
             <select
               id="category"
               value={category}
+              required
               onChange={(e) => {
                 setCategory(e.target.value);
                 setCategorySuggested(false);
+                setVisionHint(null);
               }}
               className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             >
+              <option value="" disabled>
+                Select a category…
+              </option>
               {TOKEN_CATEGORIES.map((c) => (
                 <option key={c} value={c}>
                   {c}
