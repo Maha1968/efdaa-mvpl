@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
-import { DashboardNav, ADMIN_NAV } from "@/components/dashboard-nav";
 import { toPublicUserId } from "@/lib/privacy/user-id";
 import { buildTokenChain } from "@/lib/purchases/chain";
 import { AssistLookupForm } from "@/components/assist-lookup-form";
@@ -165,8 +164,9 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
     );
   }
 
+  // Request-time expiry for Assist display (not used for business gating).
   const expired = token
-    ? new Date(token.expires_at).getTime() <= Date.now()
+    ? new Date(token.expires_at).toISOString() <= new Date().toISOString()
     : false;
 
   const maxDescDepth =
@@ -177,53 +177,51 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
       <div className="mx-auto w-full max-w-3xl">
-        <Link href="/admin" className="text-sm text-emerald-700 underline">
+        <Link href="/admin" className="text-sm text-primary underline">
           ← Admin overview
         </Link>
 
         <div className="mb-6 mt-4">
-          <h1 className="text-2xl font-semibold text-zinc-900">
+          <h1 className="text-2xl font-semibold text-text-primary">
             Referral Assist
           </h1>
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-text-secondary">
             Look up any referral code to see its full lifecycle (User IDs only).
           </p>
         </div>
 
-        <DashboardNav current="/admin/assist" links={ADMIN_NAV} />
-
         <AssistLookupForm initialCode={code ?? ""} />
 
         {code && !token && (
-          <p className="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p className="mt-6 rounded-xl bg-error-soft px-4 py-3 text-sm text-error">
             No token found for code <span className="font-mono">{code}</span>.
           </p>
         )}
 
         {token && (
           <div className="mt-6 space-y-5">
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <h2 className="font-semibold text-zinc-900">Referral details</h2>
+            <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+              <h2 className="font-semibold text-text-primary">Referral details</h2>
               <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
                 <div>
-                  <dt className="text-zinc-500">Code</dt>
+                  <dt className="text-text-muted">Code</dt>
                   <dd className="font-mono font-medium">
                     {token.code}
                     {purchaseMark(token.id)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Product</dt>
+                  <dt className="text-text-muted">Product</dt>
                   <dd>{productName}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Current User ID</dt>
+                  <dt className="text-text-muted">Current User ID</dt>
                   <dd className="font-mono">
                     {toPublicUserId(token.holder_user_id)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Parent User ID</dt>
+                  <dt className="text-text-muted">Parent User ID</dt>
                   <dd className="font-mono">
                     {token.parent_token_id
                       ? toPublicUserId(
@@ -233,29 +231,29 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Originator User ID</dt>
+                  <dt className="text-text-muted">Originator User ID</dt>
                   <dd className="font-mono">
                     {toPublicUserId(ancestors[0]?.holder_user_id)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Depth</dt>
+                  <dt className="text-text-muted">Depth</dt>
                   <dd>{token.depth}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Created</dt>
+                  <dt className="text-text-muted">Created</dt>
                   <dd>{new Date(token.created_at).toLocaleString()}</dd>
                 </div>
                 <div>
-                  <dt className="text-zinc-500">Expires</dt>
+                  <dt className="text-text-muted">Expires</dt>
                   <dd>{new Date(token.expires_at).toLocaleString()}</dd>
                 </div>
               </dl>
             </section>
 
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <h2 className="font-semibold text-zinc-900">Current status</h2>
-              <ul className="mt-3 space-y-1 text-sm text-zinc-700">
+            <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+              <h2 className="font-semibold text-text-primary">Current status</h2>
+              <ul className="mt-3 space-y-1 text-sm text-text-secondary">
                 <li>
                   Opened:{" "}
                   {events.some((e) => e.event_type === "opened")
@@ -287,17 +285,17 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
               </ul>
             </section>
 
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <h2 className="font-semibold text-zinc-900">
+            <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+              <h2 className="font-semibold text-text-primary">
                 Antecedents (upstream)
               </h2>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-text-muted">
                 <span className="font-semibold text-amber-700">(P)</span> =
                 purchase recorded on that token.
               </p>
               <ol className="mt-3 space-y-2 text-sm">
                 {ancestors.map((a, i) => (
-                  <li key={a.id} className="font-mono text-zinc-800">
+                  <li key={a.id} className="font-mono text-text-primary">
                     {i === 0 ? "Originator" : `Depth ${a.depth}`}:{" "}
                     {toPublicUserId(a.holder_user_id)} · {a.code}
                     {purchaseMark(a.id)} ·{" "}
@@ -307,24 +305,24 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
               </ol>
             </section>
 
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <h2 className="font-semibold text-zinc-900">
+            <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+              <h2 className="font-semibold text-text-primary">
                 Descendants (full downstream tree)
               </h2>
-              <p className="mt-1 text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-text-muted">
                 Indented by generation: child → grandchild → great-grandchild →
                 depth 4.{" "}
                 <span className="font-semibold text-amber-700">(P)</span> =
                 purchase on that token.
               </p>
               {descendants.length === 0 ? (
-                <p className="mt-2 text-sm text-zinc-500">No downstream shares yet.</p>
+                <p className="mt-2 text-sm text-text-muted">No downstream shares yet.</p>
               ) : (
                 <ul className="mt-3 space-y-1.5 text-sm">
                   {descendants.map(({ token: d, indent }) => (
                     <li
                       key={d.id}
-                      className="font-mono text-zinc-800"
+                      className="font-mono text-text-primary"
                       style={{ paddingLeft: indent * 16 }}
                     >
                       {indent > 0 ? "└ " : ""}
@@ -336,9 +334,9 @@ export default async function AdminAssistPage({ searchParams }: PageProps) {
               )}
             </section>
 
-            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <h2 className="font-semibold text-zinc-900">Timeline</h2>
-              <ul className="mt-3 space-y-2 text-sm text-zinc-700">
+            <section className="rounded-2xl border border-border bg-surface p-5 shadow-sm">
+              <h2 className="font-semibold text-text-primary">Timeline</h2>
+              <ul className="mt-3 space-y-2 text-sm text-text-secondary">
                 <li>
                   {new Date(token.created_at).toLocaleString()} — Token created
                   for {toPublicUserId(token.holder_user_id)}

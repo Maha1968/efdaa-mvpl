@@ -1,8 +1,18 @@
 import Link from "next/link";
+import { Gift, Share2, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/actions/auth";
 import { getAppRole } from "@/lib/auth/admin";
 import { redirect } from "next/navigation";
+import { CustomerShell } from "@/components/layout/customer-shell";
+import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button-link";
+import { Card } from "@/components/ui/card";
+import { MetricCard } from "@/components/ui/metric-card";
+import {
+  formatRewardAmount,
+  roundRewardAmount,
+} from "@/lib/purchases/rewards";
 
 function getDisplayName(user: {
   user_metadata?: { name?: string };
@@ -27,121 +37,141 @@ export default async function Home() {
 
   const role = await getAppRole();
   const displayName = getDisplayName(user);
+  const firstName = String(displayName).trim().split(/\s+/)[0] || "there";
 
-  // Admins only see the admin home — never recommendations or points
   if (role === "admin") {
     return (
-      <main className="flex flex-1 flex-col px-6 py-10">
+      <main className="flex flex-1 flex-col px-4 py-10">
         <div className="mx-auto w-full max-w-md">
-          <div className="mb-8">
-            <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
-              EFDAA Admin
-            </p>
-            <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-900">
-              Hello, {displayName}
-            </h1>
-            <p className="mt-3 text-base leading-relaxed text-zinc-600">
-              Administrator accounts can only access operations dashboards.
-              They cannot recommend products or earn points.
-            </p>
-          </div>
-
-          <Link
-            href="/admin"
-            className="mb-6 flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
-          >
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+            EFDAA Admin
+          </p>
+          <h1 className="text-page-title mt-3">Hello, {firstName}</h1>
+          <p className="text-supporting mt-2">
+            Administrator accounts can only access operations dashboards. They
+            cannot recommend products or earn points.
+          </p>
+          <ButtonLink href="/admin" fullWidth className="mt-8">
             Open administrator dashboard
-          </Link>
-
-          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-            <p className="text-sm font-medium text-zinc-500">Signed in as</p>
-            <p className="mt-1 text-base text-zinc-900">
+          </ButtonLink>
+          <Card className="mt-6">
+            <p className="text-label">Signed in as</p>
+            <p className="mt-1 text-sm text-text-primary">
               {user.email || user.phone || "Admin"}
             </p>
-            <p className="mt-3 text-xs text-zinc-500">
-              Role: administrator (permanent)
-            </p>
-          </div>
-
+            <p className="text-caption mt-3">Role: administrator (permanent)</p>
+          </Card>
           <form action={signOut} className="mt-6">
-            <button
-              type="submit"
-              className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
-            >
+            <Button type="submit" variant="secondary" fullWidth>
               Sign out
-            </button>
+            </Button>
           </form>
         </div>
       </main>
     );
   }
 
+  const { data: myRewards } = await supabase
+    .from("rewards")
+    .select("amount")
+    .eq("user_id", user.id);
+
+  const lifetime = roundRewardAmount(
+    (myRewards ?? []).reduce((sum, r) => sum + Number(r.amount), 0),
+  );
+
+  const { count: activeCount } = await supabase
+    .from("tokens")
+    .select("id", { count: "exact", head: true })
+    .eq("holder_user_id", user.id)
+    .gt("expires_at", new Date().toISOString());
+
   return (
-    <main className="flex flex-1 flex-col px-6 py-10">
-      <div className="mx-auto w-full max-w-md">
-        <div className="mb-8">
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
+    <CustomerShell>
+      <div className="space-y-6">
+        <header>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
             EFDAA
           </p>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-zinc-900">
-            Hello, {displayName}
-          </h1>
-          <p className="mt-3 text-base leading-relaxed text-zinc-600">
-            Create a token to share a product offer via WhatsApp — no purchase
-            needed.
+          <h1 className="text-page-title mt-2">Hi, {firstName}</h1>
+          <p className="text-supporting mt-2">
+            Found something you love? Share it with friends — you both earn
+            EFDAA points when they buy.
           </p>
-        </div>
+        </header>
 
-        <Link
-          href="/create"
-          className="mb-3 flex w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
-        >
-          Create a token
-        </Link>
+        <MetricCard
+          label="Your EFDAA points"
+          value={formatRewardAmount(lifetime)}
+          hint="Lifetime earnings"
+          tone="accent"
+        />
 
-        <Link
-          href="/dashboard"
-          className="mb-3 flex w-full items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 py-3.5 text-base font-medium text-zinc-800 transition-colors hover:bg-zinc-50"
-        >
-          My recommendations
-        </Link>
+        <ButtonLink href="/create" fullWidth className="gap-2">
+          <Share2 className="size-5" aria-hidden />
+          Share a find
+        </ButtonLink>
 
-        <Link
-          href="/rewards"
-          className="mb-6 flex w-full items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3.5 text-base font-medium text-emerald-900 transition-colors hover:bg-emerald-100"
-        >
-          My EFDAA points
-        </Link>
-
-        <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <div>
-            <p className="text-sm font-medium text-zinc-500">Signed in as</p>
-            <p className="mt-1 text-base text-zinc-900">
-              {user.email || user.phone || "Unknown user"}
-            </p>
-          </div>
-
-          {user.user_metadata?.name && (
-            <div>
-              <p className="text-sm font-medium text-zinc-500">Name</p>
-              <p className="mt-1 text-base text-zinc-900">
-                {user.user_metadata.name as string}
-              </p>
-            </div>
-          )}
-
-          <p className="text-xs text-zinc-500">Role: customer (permanent)</p>
-        </div>
-
-        <form action={signOut} className="mt-6">
-          <button
-            type="submit"
-            className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href="/rewards"
+            className="rounded-xl border border-border bg-surface p-4 shadow-sm transition-colors hover:border-primary/30 hover:bg-primary-soft/40"
           >
-            Sign out
-          </button>
-        </form>
+            <Sparkles className="size-5 text-accent" aria-hidden />
+            <p className="text-card-title mt-2">My points</p>
+            <p className="text-caption mt-0.5">
+              {formatRewardAmount(lifetime)} pts
+            </p>
+          </Link>
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-border bg-surface p-4 shadow-sm transition-colors hover:border-primary/30 hover:bg-primary-soft/40"
+          >
+            <p className="text-2xl font-semibold tabular-nums text-primary">
+              {activeCount ?? 0}
+            </p>
+            <p className="text-card-title mt-1">Active finds</p>
+            <p className="text-caption mt-0.5">Still sharing</p>
+          </Link>
+        </div>
+
+        <Card>
+          <p className="text-card-title">What&apos;s next?</p>
+          <ul className="mt-3 space-y-2 text-sm text-text-secondary">
+            <li className="flex gap-2">
+              <span className="font-semibold text-primary">1.</span>
+              Photograph a find you love (1–5 photos).
+            </li>
+            <li className="flex gap-2">
+              <span className="font-semibold text-primary">2.</span>
+              Share the link on WhatsApp.
+            </li>
+            <li className="flex gap-2">
+              <span className="font-semibold text-primary">3.</span>
+              Earn points when friends buy.
+            </li>
+          </ul>
+          <Link
+            href="/efdaagifts"
+            className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
+          >
+            <Gift className="size-4" aria-hidden />
+            Browse EFDAAgifts
+          </Link>
+        </Card>
+
+        <Card className="!bg-surface-muted !shadow-none">
+          <p className="text-label">Signed in as</p>
+          <p className="mt-1 text-sm text-text-primary">
+            {user.email || user.phone || "Customer"}
+          </p>
+          <form action={signOut} className="mt-4">
+            <Button type="submit" variant="secondary" size="md" fullWidth>
+              Sign out
+            </Button>
+          </form>
+        </Card>
       </div>
-    </main>
+    </CustomerShell>
   );
 }

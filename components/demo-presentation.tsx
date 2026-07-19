@@ -13,15 +13,15 @@ const display = Fraunces({
 });
 
 function scoreColor(band: DemoPresentationChain["scoreBand"]) {
-  if (band === "strong") return "text-emerald-700";
+  if (band === "strong") return "text-primary";
   if (band === "reduced") return "text-amber-700";
-  return "text-zinc-500";
+  return "text-text-muted";
 }
 
 function scoreBg(band: DemoPresentationChain["scoreBand"]) {
-  if (band === "strong") return "bg-emerald-50 border-emerald-200";
-  if (band === "reduced") return "bg-amber-50 border-amber-200";
-  return "bg-zinc-100 border-zinc-200";
+  if (band === "strong") return "bg-primary-soft border-primary/25";
+  if (band === "reduced") return "bg-warning-soft border-warning/25";
+  return "bg-surface-muted border-border";
 }
 
 function scoreWord(band: DemoPresentationChain["scoreBand"]) {
@@ -63,9 +63,9 @@ function HopBox({
       className={`my-2 flex items-center gap-3 px-2 ${
         emphasis
           ? flagged
-            ? "text-amber-800"
-            : "text-emerald-800"
-          : "text-zinc-700"
+            ? "text-warning"
+            : "text-primary"
+          : "text-text-secondary"
       }`}
     >
       <div
@@ -73,12 +73,12 @@ function HopBox({
           emphasis
             ? flagged
               ? "bg-amber-400"
-              : "bg-emerald-500"
+              : "bg-primary-soft0"
             : "bg-zinc-300"
         }`}
       />
-      <div className="min-w-0 flex-1 rounded-xl border border-dashed border-zinc-300 bg-white px-3 py-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+      <div className="min-w-0 flex-1 rounded-xl border border-dashed border-border-strong bg-surface px-3 py-2">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-text-muted">
           {title}
           {flagged ? " · flagged" : ""}
         </p>
@@ -88,7 +88,7 @@ function HopBox({
           {hop.label}
         </p>
         {subtitle ? (
-          <p className="mt-1 text-xs text-zinc-600">{subtitle}</p>
+          <p className="mt-1 text-xs text-text-secondary">{subtitle}</p>
         ) : null}
       </div>
     </div>
@@ -97,17 +97,17 @@ function HopBox({
 
 function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
   return (
-    <article className="flex flex-col rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-7">
+    <article className="flex flex-col rounded-3xl border border-border bg-surface p-5 shadow-sm sm:p-7">
       <header className="border-b border-zinc-100 pb-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
           {chain.subtitle}
         </p>
         <h2
-          className={`${display.className} mt-2 text-2xl font-semibold tracking-tight text-zinc-900 sm:text-3xl`}
+          className={`${display.className} mt-2 text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl`}
         >
           {chain.title}
         </h2>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600 sm:text-base">
+        <p className="mt-3 text-sm leading-relaxed text-text-secondary sm:text-base">
           {chain.thesis}
         </p>
       </header>
@@ -116,7 +116,7 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
       <div
         className={`mt-6 rounded-2xl border px-5 py-6 text-center ${scoreBg(chain.scoreBand)}`}
       >
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-text-muted">
           Genuineness score
         </p>
         <p
@@ -128,7 +128,7 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
           {scoreWord(chain.scoreBand)}
         </p>
         {chain.usedZeroScoreFloor && (
-          <p className="mt-3 text-sm font-medium text-zinc-700">
+          <p className="mt-3 text-sm font-medium text-text-secondary">
             Floor paid at {(ZERO_SCORE_FLOOR_REWARD_PCT * 100).toFixed(1)}% — the
             record survives even when the scored pool is ₹0.
           </p>
@@ -137,10 +137,10 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
 
       {/* Chain flow — claims only (fraud score uses claim↔claim, never receipt) */}
       <div className="mt-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
           The chain (claims only)
         </p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-text-muted">
           Claim = where/when someone opened the coupon. Intermediate hops are
           display-only. Only originator claim ↔ buyer claim scores genuineness.
         </p>
@@ -150,31 +150,31 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
               <div
                 className={`rounded-2xl border px-4 py-3 ${
                   node.isBuyerClaim
-                    ? "border-emerald-300 bg-emerald-50/70"
-                    : "border-zinc-200 bg-zinc-50/80"
+                    ? "border-emerald-300 bg-primary-soft/70"
+                    : "border-border bg-surface-muted/80"
                 }`}
               >
-                <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">
                   {node.role}
                 </p>
                 {node.isBuyerClaim ? (
-                  <p className="mt-1 text-xs font-medium text-emerald-900">
+                  <p className="mt-1 text-xs font-medium text-primary">
                     BUYER CLAIMED — where &amp; when they opened the coupon (this
                     feeds the fraud score with the originator claim)
                   </p>
                 ) : null}
-                <p className="mt-1 font-mono text-sm font-medium text-zinc-800">
+                <p className="mt-1 font-mono text-sm font-medium text-text-primary">
                   {node.publicUserId}
                 </p>
-                <p className="mt-2 text-sm font-medium text-zinc-900">
+                <p className="mt-2 text-sm font-medium text-text-primary">
                   {node.isBuyerClaim ? `BUYER CLAIMED — ${node.place}` : node.place}
                 </p>
                 {node.coords && (
-                  <p className="mt-0.5 font-mono text-xs text-zinc-500">
+                  <p className="mt-0.5 font-mono text-xs text-text-muted">
                     {node.coords}
                   </p>
                 )}
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-1 text-xs text-text-muted">
                   {node.isBuyerClaim ? "Claimed " : "Claimed "}
                   {new Date(node.at).toLocaleString()}
                 </p>
@@ -195,13 +195,13 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
 
       {/* Purchase from receipt — does NOT affect fraud/proximity score */}
       <div className="mt-8 border-t border-zinc-100 pt-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
           Purchase (from receipt)
         </p>
-        <p className="mt-1 text-xs font-medium text-zinc-700">
+        <p className="mt-1 text-xs font-medium text-text-secondary">
           Confirms the purchase; does not affect the fraud score.
         </p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-text-muted">
           Uses receipt time + purchase GPS for store-match and validity only.
         </p>
 
@@ -213,30 +213,30 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
           />
         ) : null}
 
-        <div className="mt-3 flex gap-4 rounded-2xl border border-zinc-200 bg-zinc-50/80 p-4">
+        <div className="mt-3 flex gap-4 rounded-2xl border border-border bg-surface-muted/80 p-4">
           {chain.receiptImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={chain.receiptImageUrl}
               alt="Receipt"
-              className="h-28 w-20 shrink-0 rounded-lg border border-zinc-200 object-cover"
+              className="h-28 w-20 shrink-0 rounded-lg border border-border object-cover"
             />
           ) : (
-            <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-white text-center text-[10px] text-zinc-400">
+            <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-lg border border-dashed border-border-strong bg-surface text-center text-[10px] text-text-muted">
               Receipt
             </div>
           )}
-          <div className="min-w-0 text-sm text-zinc-700">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          <div className="min-w-0 text-sm text-text-secondary">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
               PURCHASE (from receipt)
             </p>
-            <p className="mt-1 font-semibold text-zinc-900">{chain.productName}</p>
+            <p className="mt-1 font-semibold text-text-primary">{chain.productName}</p>
             <p className="mt-1 font-mono text-xs">{chain.barcode}</p>
-            <p className="mt-3 text-sm font-medium text-zinc-900">
+            <p className="mt-3 text-sm font-medium text-text-primary">
               {chain.storeName}
               {chain.storeAddress ? ` — ${chain.storeAddress}` : ""}
             </p>
-            <p className="mt-2 text-sm font-medium text-zinc-900">
+            <p className="mt-2 text-sm font-medium text-text-primary">
               Store distance:{" "}
               {chain.purchaseVsStoreMeters != null
                 ? `${chain.purchaseVsStoreMeters.toFixed(0)} m`
@@ -247,17 +247,17 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
                 : ""}
             </p>
             {chain.purchaseCoords ? (
-              <p className="mt-1 font-mono text-xs text-zinc-500">
+              <p className="mt-1 font-mono text-xs text-text-muted">
                 Purchase GPS {chain.purchaseCoords}
               </p>
             ) : null}
-            <p className="mt-1 text-xs text-zinc-500">
+            <p className="mt-1 text-xs text-text-muted">
               Receipt time {new Date(chain.purchaseAt).toLocaleString()}
               {chain.minutesOriginToPurchase != null
                 ? ` · ${formatDurationMinutes(chain.minutesOriginToPurchase)} from originator share`
                 : ""}
             </p>
-            <p className="mt-2 text-lg font-semibold text-zinc-900">
+            <p className="mt-2 text-lg font-semibold text-text-primary">
               ₹{chain.amount.toFixed(2)}
             </p>
           </div>
@@ -266,14 +266,14 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
 
       {/* Why */}
       <div className="mt-8 border-t border-zinc-100 pt-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
           Why this score
         </p>
         <ul className="mt-3 space-y-2">
           {chain.checks.map((c) => (
             <li
               key={c.label}
-              className="flex gap-3 rounded-xl border border-zinc-100 bg-zinc-50 px-3 py-2.5 text-sm"
+              className="flex gap-3 rounded-xl border border-zinc-100 bg-surface-muted px-3 py-2.5 text-sm"
             >
               <span
                 className={`mt-0.5 shrink-0 text-base font-bold ${
@@ -284,8 +284,8 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
                 {c.pass ? "✓" : "✗"}
               </span>
               <span>
-                <span className="font-medium text-zinc-900">{c.label}</span>
-                <span className="mt-0.5 block text-zinc-600">{c.detail}</span>
+                <span className="font-medium text-text-primary">{c.label}</span>
+                <span className="mt-0.5 block text-text-secondary">{c.detail}</span>
               </span>
             </li>
           ))}
@@ -294,37 +294,37 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
 
       {/* Rewards */}
       <div className="mt-8 border-t border-zinc-100 pt-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
           Reward pool
         </p>
-        <p className={`${display.className} mt-2 text-3xl font-semibold text-zinc-900`}>
+        <p className={`${display.className} mt-2 text-3xl font-semibold text-text-primary`}>
           ₹{formatRewardAmount(chain.basePool)}
         </p>
         {chain.usedZeroScoreFloor ? (
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-text-secondary">
             Floor pool (scored pool was ₹{formatRewardAmount(chain.scoredPool)})
           </p>
         ) : (
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-text-secondary">
             Split across the chain by role
           </p>
         )}
         <ul className="mt-4 space-y-2">
           {chain.rewards.length === 0 ? (
-            <li className="text-sm text-zinc-500">No rewards written.</li>
+            <li className="text-sm text-text-muted">No rewards written.</li>
           ) : (
             chain.rewards.map((r) => (
               <li
                 key={`${r.role}-${r.publicUserId}`}
                 className="flex items-center justify-between gap-3 text-sm"
               >
-                <span className="text-zinc-700">
+                <span className="text-text-secondary">
                   {roleLabel(r.role)}{" "}
-                  <span className="font-mono text-xs text-zinc-500">
+                  <span className="font-mono text-xs text-text-muted">
                     {r.publicUserId}
                   </span>
                 </span>
-                <span className="font-semibold tabular-nums text-zinc-900">
+                <span className="font-semibold tabular-nums text-text-primary">
                   ₹{formatRewardAmount(r.amount)}
                 </span>
               </li>
@@ -339,12 +339,12 @@ function ChainColumn({ chain }: { chain: DemoPresentationChain }) {
 export function DemoPresentationView({ data }: { data: DemoPresentationData }) {
   return (
     <div
-      className={`${sans.variable} ${display.variable} ${sans.className} min-h-full bg-zinc-100 text-zinc-900`}
+      className={`${sans.variable} ${display.variable} ${sans.className} min-h-full bg-surface-muted text-text-primary`}
     >
       <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-8 sm:py-14 lg:px-10 lg:py-16">
         {/* Thesis */}
         <header className="max-w-3xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-800">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
             EFDAA live demo
           </p>
           <h1
@@ -352,7 +352,7 @@ export function DemoPresentationView({ data }: { data: DemoPresentationData }) {
           >
             Offline word-of-mouth, made measurable.
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-relaxed text-zinc-600 sm:text-lg">
+          <p className="mt-5 max-w-2xl text-base leading-relaxed text-text-secondary sm:text-lg">
             Three real referral chains. Same product rules. Different behaviour.
             Watch how genuineness scoring decides who gets paid — and how every
             rupee still traces to a validated purchase.
@@ -376,9 +376,9 @@ export function DemoPresentationView({ data }: { data: DemoPresentationData }) {
           ].map((s) => (
             <div
               key={s.label}
-              className="rounded-2xl border border-zinc-200 bg-white px-5 py-5 shadow-sm"
+              className="rounded-2xl border border-border bg-surface px-5 py-5 shadow-sm"
             >
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-text-muted">
                 {s.label}
               </p>
               <p
@@ -390,18 +390,18 @@ export function DemoPresentationView({ data }: { data: DemoPresentationData }) {
           ))}
         </div>
 
-        <p className="mt-8 max-w-3xl text-base font-medium text-zinc-800 sm:text-lg">
+        <p className="mt-8 max-w-3xl text-base font-medium text-text-primary sm:text-lg">
           Look across the three columns: full pay when hops are genuine · cut
           when proximity looks collusive · zero score when expired — yet the
           attribution record and floor reward still exist.
         </p>
 
         {!data.loaded ? (
-          <div className="mt-12 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-10 text-center">
-            <p className={`${display.className} text-2xl font-semibold text-zinc-900`}>
+          <div className="mt-12 rounded-3xl border border-warning/25 bg-warning-soft px-6 py-10 text-center">
+            <p className={`${display.className} text-2xl font-semibold text-text-primary`}>
               Demo chains not loaded yet
             </p>
-            <p className="mx-auto mt-3 max-w-lg text-sm text-zinc-600">
+            <p className="mx-auto mt-3 max-w-lg text-sm text-text-secondary">
               An administrator must run Demo Data → Load on the admin overview
               (roots include DEMOGEN0, DEMOPRX0, DEMOEXP0). This page only shows
               seeded demo rows — never real customer data.
@@ -415,14 +415,14 @@ export function DemoPresentationView({ data }: { data: DemoPresentationData }) {
           </section>
         )}
 
-        <footer className="mt-16 border-t border-zinc-300/80 pt-10 pb-6">
+        <footer className="mt-16 border-t border-border-strong/80 pt-10 pb-6">
           <p
             className={`${display.className} max-w-3xl text-2xl font-semibold leading-snug text-zinc-950 sm:text-3xl`}
           >
             Every rupee of reward traces to one validated transaction — and every
             purchase traces back to the person who caused it.
           </p>
-          <p className="mt-4 text-sm text-zinc-500">
+          <p className="mt-4 text-sm text-text-muted">
             Read-only demo · seeded data only · no customer PII
           </p>
         </footer>

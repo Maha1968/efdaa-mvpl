@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils/cn";
 
 type AuthMode = "signin" | "signup";
 type AuthMethod = "email" | "phone";
@@ -23,6 +27,8 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const fromShareLink = nextUrl.startsWith("/t/");
+
   async function handleEmailSubmit(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
@@ -30,7 +36,6 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
     setMessage(null);
 
     const supabase = createClient();
-
     const callbackWithNext = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextUrl)}`;
 
     if (mode === "signup") {
@@ -46,7 +51,6 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
       if (signUpError) {
         setError(signUpError.message);
       } else if (signUpData.session) {
-        // Confirmation disabled — return to the share link (or other next).
         window.location.href = nextUrl;
       } else {
         setMessage(
@@ -80,16 +84,17 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
 
     const { error: otpError } = await supabase.auth.signInWithOtp({
       phone: formattedPhone,
-      options: mode === "signup" && name ? { data: { name } } : undefined,
+      options: {
+        data: mode === "signup" ? { name } : undefined,
+      },
     });
 
     if (otpError) {
       setError(otpError.message);
     } else {
       setOtpSent(true);
-      setMessage("We sent a code to your phone. Enter it below.");
+      setMessage("Code sent. Enter it below to continue.");
     }
-
     setLoading(false);
   }
 
@@ -97,6 +102,7 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setMessage(null);
 
     const supabase = createClient();
     const formattedPhone = phone.startsWith("+") ? phone : `+${phone}`;
@@ -119,79 +125,71 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
+        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white shadow-md">
+          E
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
           EFDAA
         </p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
-          {mode === "signup" ? "Create your account" : "Welcome back"}
+        <h1 className="text-page-title mt-3 text-text-primary">
+          {mode === "signup" ? "Join EFDAA" : "Welcome back"}
         </h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          {nextUrl.startsWith("/t/")
+        <p className="text-supporting mt-2">
+          {fromShareLink
             ? "Sign in to see what your friend shared — you’ll land right back on their find."
-            : "Sign in with email or phone to continue."}
+            : "Share discoveries you love. Friends earn points when they buy."}
         </p>
       </div>
 
-      <div className="mb-6 grid grid-cols-2 gap-2 rounded-xl bg-zinc-100 p-1">
-        <button
-          type="button"
-          onClick={() => {
-            setMethod("email");
-            setOtpSent(false);
-            setError(null);
-            setMessage(null);
-          }}
-          className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
-            method === "email"
-              ? "bg-white text-zinc-900 shadow-sm"
-              : "text-zinc-600"
-          }`}
-        >
-          Email
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setMethod("phone");
-            setOtpSent(false);
-            setError(null);
-            setMessage(null);
-          }}
-          className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-colors ${
-            method === "phone"
-              ? "bg-white text-zinc-900 shadow-sm"
-              : "text-zinc-600"
-          }`}
-        >
-          Phone
-        </button>
+      <div
+        className="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-surface-muted p-1"
+        role="tablist"
+        aria-label="Sign-in method"
+      >
+        {(["email", "phone"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={method === m}
+            onClick={() => {
+              setMethod(m);
+              setOtpSent(false);
+              setError(null);
+              setMessage(null);
+            }}
+            className={cn(
+              "rounded-lg px-4 py-2.5 text-sm font-medium transition-colors",
+              method === m
+                ? "bg-surface text-text-primary shadow-sm"
+                : "text-text-muted hover:text-text-secondary",
+            )}
+          >
+            {m === "email" ? "Email" : "Phone"}
+          </button>
+        ))}
       </div>
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+      <Card className="p-5 sm:p-6">
         {method === "email" ? (
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             {mode === "signup" && (
               <div>
-                <label htmlFor="name" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Your name
-                </label>
-                <input
+                <Label htmlFor="name">Your name</Label>
+                <Input
                   id="name"
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Mahadevann"
-                  className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  placeholder="e.g. Priya"
+                  autoComplete="name"
                 />
               </div>
             )}
-
             <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                Email
-              </label>
-              <input
+              <Label htmlFor="email">Email</Label>
+              <Input
                 id="email"
                 type="email"
                 required
@@ -199,15 +197,11 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               />
             </div>
-
             <div>
-              <label htmlFor="password" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                Password
-              </label>
-              <input
+              <Label htmlFor="password">Password</Label>
+              <Input
                 id="password"
                 type="password"
                 required
@@ -216,74 +210,52 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
-                className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
               />
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="min-h-12 w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
-            >
-              {loading
-                ? "Please wait..."
-                : mode === "signup"
-                  ? "Create account"
-                  : "Sign in"}
-            </button>
+            <Button type="submit" fullWidth loading={loading}>
+              {mode === "signup" ? "Create account" : "Sign in"}
+            </Button>
           </form>
         ) : !otpSent ? (
           <form onSubmit={handleSendOtp} className="space-y-4">
             {mode === "signup" && (
               <div>
-                <label htmlFor="phone-name" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                  Your name
-                </label>
-                <input
+                <Label htmlFor="phone-name">Your name</Label>
+                <Input
                   id="phone-name"
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Mahadevann"
-                  className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  placeholder="e.g. Priya"
+                  autoComplete="name"
                 />
               </div>
             )}
-
             <div>
-              <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                Phone number
-              </label>
-              <input
+              <Label htmlFor="phone">Phone number</Label>
+              <Input
                 id="phone"
                 type="tel"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 9876543210"
-                className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                autoComplete="tel"
               />
-              <p className="mt-1.5 text-xs text-zinc-500">
+              <p className="text-caption mt-1.5">
                 Include country code, e.g. +91 for India.
               </p>
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-emerald-700 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
-            >
-              {loading ? "Sending..." : "Send code"}
-            </button>
+            <Button type="submit" fullWidth loading={loading}>
+              Send code
+            </Button>
           </form>
         ) : (
           <form onSubmit={handleVerifyOtp} className="space-y-4">
             <div>
-              <label htmlFor="otp" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                Verification code
-              </label>
-              <input
+              <Label htmlFor="otp">Verification code</Label>
+              <Input
                 id="otp"
                 type="text"
                 required
@@ -291,42 +263,43 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
-                className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                autoComplete="one-time-code"
               />
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-emerald-700 px-4 py-3 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
-            >
-              {loading ? "Verifying..." : "Verify and sign in"}
-            </button>
-
-            <button
+            <Button type="submit" fullWidth loading={loading}>
+              Verify and continue
+            </Button>
+            <Button
               type="button"
+              variant="tertiary"
+              fullWidth
+              size="md"
               onClick={() => setOtpSent(false)}
-              className="w-full text-sm text-zinc-600 underline"
             >
               Use a different number
-            </button>
+            </Button>
           </form>
         )}
 
         {error && (
-          <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+          <p
+            role="alert"
+            className="mt-4 rounded-lg bg-error-soft px-4 py-3 text-sm text-error"
+          >
             {error}
           </p>
         )}
-
         {message && (
-          <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <p
+            role="status"
+            className="mt-4 rounded-lg bg-success-soft px-4 py-3 text-sm text-success"
+          >
             {message}
           </p>
         )}
-      </div>
+      </Card>
 
-      <p className="mt-6 text-center text-sm text-zinc-600">
+      <p className="mt-6 text-center text-sm text-text-secondary">
         {mode === "signup" ? "Already have an account?" : "New to EFDAA?"}{" "}
         <button
           type="button"
@@ -335,7 +308,7 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
             setError(null);
             setMessage(null);
           }}
-          className="font-medium text-emerald-700 underline"
+          className="font-semibold text-primary underline-offset-2 hover:underline"
         >
           {mode === "signup" ? "Sign in" : "Create account"}
         </button>

@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
-import { DashboardNav, ADMIN_NAV } from "@/components/dashboard-nav";
 import { DemoDataPanel } from "@/components/demo-data-panel";
 import { toPublicUserId } from "@/lib/privacy/user-id";
 import { formatRewardAmount } from "@/lib/purchases/rewards";
@@ -91,30 +89,21 @@ export default async function AdminOverviewPage() {
   });
 
   return (
-    <main className="flex flex-1 flex-col px-6 py-10">
-      <div className="mx-auto w-full max-w-3xl">
-        <Link href="/" className="text-sm text-emerald-700 underline">
-          ← Home
-        </Link>
+    <>
+      <div className="mb-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
+          Administrator
+        </p>
+        <h1 className="text-page-title mt-2">Operations overview</h1>
+        <p className="text-supporting mt-2">
+          Full referral visibility using platform User IDs only — no customer
+          names, phones, or emails.
+        </p>
+      </div>
 
-        <div className="mb-6 mt-4">
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
-            Administrator
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
-            Operations overview
-          </h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Full referral visibility using platform User IDs only — no customer
-            names, phones, or emails.
-          </p>
-        </div>
+      <DemoDataPanel />
 
-        <DashboardNav current="/admin" links={ADMIN_NAV} />
-
-        <DemoDataPanel />
-
-        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {[
             ["Recommendations", originators.length],
             ["Opens (logged)", openEvents ?? 0],
@@ -127,26 +116,26 @@ export default async function AdminOverviewPage() {
           ].map(([label, value]) => (
             <div
               key={String(label)}
-              className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm"
+              className="rounded-2xl border border-border bg-surface p-4 shadow-sm"
             >
-              <p className="text-xs text-zinc-500">{label}</p>
-              <p className="mt-1 text-xl font-semibold text-zinc-900">{value}</p>
+              <p className="text-xs text-text-muted">{label}</p>
+              <p className="mt-1 text-xl font-semibold text-text-primary">{value}</p>
             </div>
           ))}
         </div>
 
-        <p className="mt-3 text-xs text-zinc-500">
+        <p className="mt-3 text-xs text-text-muted">
           Opens = rows in referral_events with type opened. Forwards = tokens at
           depth 1+. If Opens stays at 0, the referral_events table is usually
           missing — run supabase/schema_stage7a.sql (then schema_demo.sql, then
           schema_stage7h.sql) in Supabase SQL Editor, then Reset + Load.
         </p>
 
-        <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-zinc-900">Conversion by depth</h2>
+        <section className="mt-8 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <h2 className="font-semibold text-text-primary">Conversion by depth</h2>
           <ul className="mt-3 space-y-2 text-sm">
             {depthConversion.map((d) => (
-              <li key={d.depth} className="flex justify-between text-zinc-700">
+              <li key={d.depth} className="flex justify-between text-text-secondary">
                 <span>Depth {d.depth}</span>
                 <span>
                   {d.purchases} purchases / {d.tokens} tokens
@@ -156,38 +145,37 @@ export default async function AdminOverviewPage() {
           </ul>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-zinc-900">
+        <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <h2 className="font-semibold text-text-primary">
             Top originators (by reward earned)
           </h2>
           <ul className="mt-3 space-y-2 text-sm">
             {topOriginators.length === 0 ? (
-              <li className="text-zinc-500">No rewards yet.</li>
+              <li className="text-text-muted">No rewards yet.</li>
             ) : (
               topOriginators.map(([uid, total]) => (
                 <li key={uid} className="flex justify-between">
-                  <span className="font-mono text-zinc-800">
+                  <span className="font-mono text-text-primary">
                     {toPublicUserId(uid)}
                   </span>
-                  <span className="text-emerald-700">₹{total.toFixed(2)}</span>
+                  <span className="text-primary">₹{total.toFixed(2)}</span>
                 </li>
               ))
             )}
           </ul>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-zinc-900">Top products (by recommendations)</h2>
+        <section className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <h2 className="font-semibold text-text-primary">Top products (by recommendations)</h2>
           <ul className="mt-3 space-y-2 text-sm">
             {products.map((p) => (
-              <li key={p.name} className="flex justify-between text-zinc-700">
+              <li key={p.name} className="flex justify-between text-text-secondary">
                 <span>{p.name}</span>
                 <span>{p.count}</span>
               </li>
             ))}
           </ul>
         </section>
-      </div>
-    </main>
+    </>
   );
 }

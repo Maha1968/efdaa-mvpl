@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { isAdminUser } from "@/lib/auth/admin";
-import { DashboardNav, ADMIN_NAV } from "@/components/dashboard-nav";
 import { toPublicUserId } from "@/lib/privacy/user-id";
 import { collectDescendants, emptyDepthStats } from "@/lib/dashboard/analytics";
 import { formatRewardAmount } from "@/lib/purchases/rewards";
@@ -106,23 +105,21 @@ export default async function AdminPurchaseViewPage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
       <div className="mx-auto w-full max-w-3xl">
-        <Link href="/admin" className="text-sm text-emerald-700 underline">
+        <Link href="/admin" className="text-sm text-primary underline">
           ← Admin overview
         </Link>
 
         <div className="mb-6 mt-4">
-          <h1 className="text-2xl font-semibold text-zinc-900">
+          <h1 className="text-2xl font-semibold text-text-primary">
             Customer purchase view
           </h1>
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-text-secondary">
             Buyer User IDs and depth impact in the referral tree — no PII.
           </p>
         </div>
 
-        <DashboardNav current="/admin/purchase-view" links={ADMIN_NAV} />
-
         {rows.length === 0 ? (
-          <p className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-600">
+          <p className="rounded-2xl border border-border bg-surface p-6 text-sm text-text-secondary">
             No validated purchases yet.
           </p>
         ) : (
@@ -141,15 +138,15 @@ export default async function AdminPurchaseViewPage() {
               }) => (
                 <li
                   key={purchase.id}
-                  className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm"
+                  className="rounded-2xl border border-border bg-surface p-5 shadow-sm"
                 >
-                  <p className="font-mono text-sm font-semibold text-zinc-900">
+                  <p className="font-mono text-sm font-semibold text-text-primary">
                     Buyer {toPublicUserId(purchase.buyer_user_id)}
                   </p>
-                  <p className="mt-1 text-sm text-zinc-700">
+                  <p className="mt-1 text-sm text-text-secondary">
                     {productName} · ₹{Number(purchase.amount).toFixed(2)}
                   </p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-text-muted">
                     {new Date(purchase.created_at).toLocaleString()} · token{" "}
                     <span className="font-mono">
                       {purchaseCode}
@@ -168,22 +165,22 @@ export default async function AdminPurchaseViewPage() {
                       {toPublicUserId(originatorId)}
                     </span>
                   </p>
-                  <p className="mt-1 text-xs text-zinc-500">
+                  <p className="mt-1 text-xs text-text-muted">
                     Rewards from this purchase: ₹
                     {formatRewardAmount(rewardTotal)}
                   </p>
 
                   <div className="mt-4 overflow-x-auto">
-                    <p className="text-sm font-medium text-zinc-700">
+                    <p className="text-sm font-medium text-text-secondary">
                       Purchases in this referral tree by depth
                     </p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
+                    <p className="mt-0.5 text-xs text-text-muted">
                       Absolute depth from originator (not only deeper than this
                       buyer).
                     </p>
                     <table className="mt-2 w-full text-left text-xs">
                       <thead>
-                        <tr className="text-zinc-500">
+                        <tr className="text-text-muted">
                           <th className="py-1">Depth</th>
                           <th>Purchases</th>
                           <th>Value</th>
@@ -193,7 +190,7 @@ export default async function AdminPurchaseViewPage() {
                         {byDepth.map((d) => (
                           <tr
                             key={d.depth}
-                            className="border-t border-zinc-100"
+                            className="border-t border-border"
                           >
                             <td className="py-1">{d.depth}</td>
                             <td>{d.purchases}</td>
@@ -205,12 +202,12 @@ export default async function AdminPurchaseViewPage() {
                   </div>
 
                   <div className="mt-4 overflow-x-auto">
-                    <p className="text-sm font-medium text-zinc-700">
+                    <p className="text-sm font-medium text-text-secondary">
                       Rewards from this purchase by recipient depth
                     </p>
                     <table className="mt-2 w-full text-left text-xs">
                       <thead>
-                        <tr className="text-zinc-500">
+                        <tr className="text-text-muted">
                           <th className="py-1">Depth</th>
                           <th>Points</th>
                           <th>Rewards</th>
@@ -220,7 +217,7 @@ export default async function AdminPurchaseViewPage() {
                         {rewardsByDepth.map((d) => (
                           <tr
                             key={d.depth}
-                            className="border-t border-zinc-100"
+                            className="border-t border-border"
                           >
                             <td className="py-1">{d.depth}</td>
                             <td>{formatRewardAmount(d.rewardPoints)}</td>

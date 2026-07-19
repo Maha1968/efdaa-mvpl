@@ -135,25 +135,25 @@ export function RedeemForm({
     <form onSubmit={handleSubmit} className="space-y-6 pb-28">
       <ExpiryCountdown expiresAt={expiresAt} onExpiredChange={setExpired} />
 
-      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-        <p className="text-sm font-medium text-zinc-500">Product</p>
-        <p className="mt-1 text-lg font-semibold text-zinc-900">{product.name}</p>
+      <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+        <p className="text-sm font-medium text-text-muted">Product</p>
+        <p className="mt-1 text-lg font-semibold text-text-primary">{product.name}</p>
         {product.price > 0 ? (
-          <p className="mt-1 text-sm text-zinc-600">₹{product.price}</p>
+          <p className="mt-1 text-sm text-text-secondary">₹{product.price}</p>
         ) : null}
       </div>
 
-      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-        <p className="text-sm font-medium text-emerald-900">
+      <div className="rounded-2xl border border-primary/20 bg-primary-soft/60 p-4">
+        <p className="text-sm font-medium text-primary">
           Originator&apos;s store (required)
         </p>
-        <p className="mt-1 text-base font-semibold text-zinc-900">{storeLabel}</p>
+        <p className="mt-1 text-base font-semibold text-text-primary">{storeLabel}</p>
         {originatorStore?.address ? (
-          <p className="mt-1 text-sm text-zinc-600">{originatorStore.address}</p>
+          <p className="mt-1 text-sm text-text-secondary">{originatorStore.address}</p>
         ) : null}
-        <p className="mt-2 text-xs text-zinc-600">
-          Purchase GPS should be at this store. Farther than 50 m reduces the
-          genuineness score sharply (×0.01).
+        <p className="mt-2 text-xs text-text-secondary">
+          Please complete your purchase at this store. Being nearby helps confirm
+          a genuine purchase.
         </p>
       </div>
 
@@ -167,7 +167,7 @@ export function RedeemForm({
       />
 
       <div>
-        <label htmlFor="amount" className="mb-1.5 block text-sm font-medium text-zinc-700">
+        <label htmlFor="amount" className="mb-1.5 block text-sm font-medium text-text-secondary">
           Purchase amount (₹)
         </label>
         <input
@@ -178,18 +178,18 @@ export function RedeemForm({
           required
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-border-strong px-4 py-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-focus-ring/40"
         />
       </div>
 
       <div>
         <label
           htmlFor="receipt-purchased-at"
-          className="mb-1.5 block text-sm font-medium text-zinc-700"
+          className="mb-1.5 block text-sm font-medium text-text-secondary"
         >
           Date &amp; time on receipt
         </label>
-        <p className="mb-2 text-sm text-zinc-500">
+        <p className="mb-2 text-sm text-text-muted">
           Enter exactly as printed on the invoice — this is the purchase time.
         </p>
         <input
@@ -198,24 +198,23 @@ export function RedeemForm({
           required
           value={receiptPurchasedAt}
           onChange={(e) => setReceiptPurchasedAt(e.target.value)}
-          className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-border-strong px-4 py-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-focus-ring/40"
         />
       </div>
 
       <div>
         <label
           htmlFor="receipt-barcode"
-          className="mb-1.5 block text-sm font-medium text-zinc-700"
+          className="mb-1.5 block text-sm font-medium text-text-secondary"
         >
           Barcode on receipt
           {!barcodeRequired ? (
-            <span className="font-normal text-zinc-400"> (optional)</span>
+            <span className="font-normal text-text-muted"> (optional)</span>
           ) : null}
         </label>
         {!barcodeRequired ? (
-          <p className="mb-2 text-sm text-zinc-500">
-            This recommendation had no barcode — leaving blank is fine
-            (barcode_match = not_provided, no score penalty).
+          <p className="mb-2 text-sm text-text-muted">
+            This recommendation had no barcode — you can leave this blank.
           </p>
         ) : null}
         <input
@@ -225,7 +224,7 @@ export function RedeemForm({
           required={barcodeRequired}
           value={receiptBarcode}
           onChange={(e) => setReceiptBarcode(e.target.value)}
-          className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="min-h-12 w-full rounded-xl border border-border-strong px-4 py-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-focus-ring/40"
         />
       </div>
 
@@ -238,16 +237,16 @@ export function RedeemForm({
       />
 
       {error && (
-        <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className="rounded-xl bg-error-soft px-4 py-3 text-sm text-error">
           {error}
         </p>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
         <button
           type="submit"
           disabled={loading || expired}
-          className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
+          className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-primary px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
         >
           {expired ? "Offer expired" : loading ? "Submitting…" : "Submit purchase"}
         </button>

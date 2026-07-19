@@ -9,8 +9,8 @@ export function TokenFindsHero({
 }: TokenFindsHeroProps) {
   if (photos.length === 0) {
     return (
-      <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 to-stone-100">
-        <p className="px-6 text-center text-sm text-zinc-600">
+      <div className="flex aspect-[4/3] w-full items-center justify-center rounded-2xl bg-gradient-to-br from-primary-soft to-surface-muted">
+        <p className="px-6 text-center text-sm text-text-secondary">
           {senderFirstName}&apos;s finds
         </p>
       </div>

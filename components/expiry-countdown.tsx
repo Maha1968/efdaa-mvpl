@@ -21,11 +21,17 @@ export function ExpiryCountdown({
   );
 
   useEffect(() => {
-    setRemainingMs(msUntilExpiry(expiresAt));
     const id = window.setInterval(() => {
       setRemainingMs(msUntilExpiry(expiresAt));
     }, 1000);
-    return () => window.clearInterval(id);
+    // Sync immediately on next frame so we don't setState synchronously in effect.
+    const raf = window.requestAnimationFrame(() => {
+      setRemainingMs(msUntilExpiry(expiresAt));
+    });
+    return () => {
+      window.clearInterval(id);
+      window.cancelAnimationFrame(raf);
+    };
   }, [expiresAt]);
 
   const expired = remainingMs <= 0;
@@ -37,10 +43,10 @@ export function ExpiryCountdown({
   if (expired) {
     return (
       <div className={className}>
-        <p className="font-mono text-lg font-semibold tabular-nums text-zinc-500">
+        <p className="font-mono text-lg font-semibold tabular-nums text-text-muted">
           Expires in 00:00:00
         </p>
-        <p className="mt-1 text-sm font-medium text-amber-800">
+        <p className="mt-1 text-sm font-medium text-warning">
           This offer has expired
         </p>
       </div>
@@ -49,7 +55,7 @@ export function ExpiryCountdown({
 
   return (
     <p
-      className={`font-mono text-lg font-semibold tabular-nums text-zinc-800 ${className}`}
+      className={`font-mono text-lg font-semibold tabular-nums text-text-primary ${className}`}
       aria-live="polite"
     >
       Expires in {formatCountdown(remainingMs)}

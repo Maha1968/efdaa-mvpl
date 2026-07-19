@@ -1,9 +1,9 @@
-import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
-import { DashboardNav, CUSTOMER_NAV } from "@/components/dashboard-nav";
+import { CustomerShell } from "@/components/layout/customer-shell";
 import { CustomerPointsDashboard } from "@/components/customer-points-dashboard";
+import { PageHeader } from "@/components/ui/card";
 import { buildCustomerPointsDashboard } from "@/lib/dashboard/customer-points";
 import { isAdminUser } from "@/lib/auth/admin";
+import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import type { Purchase, Reward, Token } from "@/types/database";
 
@@ -40,29 +40,13 @@ export default async function MyRewardsPage() {
   });
 
   return (
-    <main className="flex flex-1 flex-col px-4 py-8 sm:px-6 sm:py-10">
-      <div className="mx-auto w-full max-w-2xl">
-        <Link href="/" className="text-sm text-emerald-700 underline">
-          ← Home
-        </Link>
-
-        <div className="mb-6 mt-4">
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
-            EFDAA points
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
-            My points
-          </h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Your lifetime earnings from recommendations you started, passed on,
-            or bought through — never other people&apos;s identities.
-          </p>
-        </div>
-
-        <DashboardNav current="/rewards" links={CUSTOMER_NAV} />
-
-        <CustomerPointsDashboard data={data} />
-      </div>
-    </main>
+    <CustomerShell wide>
+      <PageHeader
+        eyebrow="EFDAA points"
+        title="My points"
+        description="Your lifetime earnings from finds you shared, passed on, or bought through — never other people's identities."
+      />
+      <CustomerPointsDashboard data={data} />
+    </CustomerShell>
   );
 }

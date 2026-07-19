@@ -17,17 +17,17 @@ export function AssistLookupForm({ initialCode }: { initialCode: string }) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-4 sm:flex-row"
+      className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 sm:flex-row"
     >
       <input
         value={code}
         onChange={(e) => setCode(e.target.value)}
         placeholder="Enter referral / token code"
-        className="flex-1 rounded-xl border border-zinc-300 px-4 py-3 font-mono text-sm outline-none focus:border-emerald-500"
+        className="flex-1 rounded-xl border border-border-strong px-4 py-3 font-mono text-sm outline-none focus:border-primary"
       />
       <button
         type="submit"
-        className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-medium text-white"
+        className="rounded-xl bg-primary px-5 py-3 text-sm font-medium text-white"
       >
         Trace
       </button>

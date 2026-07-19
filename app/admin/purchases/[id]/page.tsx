@@ -16,6 +16,7 @@ import {
   computeBasePool,
   formatRewardAmount,
 } from "@/lib/purchases/rewards";
+import { toPublicUserId } from "@/lib/privacy/user-id";
 import { notFound } from "next/navigation";
 import type { Token } from "@/types/database";
 
@@ -76,15 +77,11 @@ export default async function PurchaseResultPage({ params }: PageProps) {
     scoring,
   );
 
-  const rewardsWithNames = await Promise.all(
-    (rewards ?? []).map(async (reward) => {
-      const { data: user } = await supabase
-        .from("users")
-        .select("name")
-        .eq("id", reward.user_id)
-        .single();
-      return { ...reward, name: user?.name || "Unknown" };
-    }),
+  const rewardsWithIds = await Promise.all(
+    (rewards ?? []).map(async (reward) => ({
+      ...reward,
+      publicId: toPublicUserId(reward.user_id),
+    })),
   );
 
   const amount = Number(purchase.amount);
@@ -100,44 +97,44 @@ export default async function PurchaseResultPage({ params }: PageProps) {
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
       <div className="mx-auto w-full max-w-2xl space-y-6">
-        <Link href="/admin/purchases" className="text-sm text-emerald-700 underline">
+        <Link href="/admin/purchases" className="text-sm text-primary underline">
           ← Back to pending purchases
         </Link>
 
         <div>
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
+          <p className="text-sm font-medium uppercase tracking-widest text-primary">
             Validation result
           </p>
-          <h1 className="mt-2 text-2xl font-semibold text-zinc-900">
+          <h1 className="mt-2 text-2xl font-semibold text-text-primary">
             {purchase.status === "validated" ? "Purchase validated" : "Purchase details"}
           </h1>
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 text-sm text-text-secondary">
             {product?.name ?? "Product"} · {store?.name ?? "Store"} · ₹{amount}
           </p>
           {purchase.receipt_purchased_at ? (
-            <p className="mt-1 text-sm text-zinc-500">
+            <p className="mt-1 text-sm text-text-muted">
               Receipt time:{" "}
               {new Date(purchase.receipt_purchased_at).toLocaleString()}
             </p>
           ) : null}
         </div>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Genuineness score</h2>
-          <p className="mt-2 text-3xl font-semibold text-emerald-700">
+        <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-text-primary">Genuineness score</h2>
+          <p className="mt-2 text-3xl font-semibold text-primary">
             {score.toFixed(3)}
           </p>
 
           <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
-            <div className="rounded-xl bg-zinc-50 px-3 py-2">
-              <p className="text-zinc-500">Within window</p>
-              <p className="font-medium text-zinc-900">
+            <div className="rounded-xl bg-surface-muted px-3 py-2">
+              <p className="text-text-muted">Within window</p>
+              <p className="font-medium text-text-primary">
                 {purchase.within_window ? "Yes" : "No"}
               </p>
             </div>
-            <div className="rounded-xl bg-zinc-50 px-3 py-2">
-              <p className="text-zinc-500">Barcode match</p>
-              <p className="font-medium text-zinc-900">
+            <div className="rounded-xl bg-surface-muted px-3 py-2">
+              <p className="text-text-muted">Barcode match</p>
+              <p className="font-medium text-text-primary">
                 {purchase.barcode_match === "match"
                   ? "Yes (match)"
                   : purchase.barcode_match === "not_provided"
@@ -147,15 +144,15 @@ export default async function PurchaseResultPage({ params }: PageProps) {
                       : "—"}
               </p>
             </div>
-            <div className="rounded-xl bg-zinc-50 px-3 py-2">
-              <p className="text-zinc-500">Store match</p>
-              <p className="font-medium text-zinc-900">
+            <div className="rounded-xl bg-surface-muted px-3 py-2">
+              <p className="text-text-muted">Store match</p>
+              <p className="font-medium text-text-primary">
                 {purchase.store_match ? "Yes" : `No (×${STORE_MISS_MULTIPLIER})`}
               </p>
             </div>
           </div>
 
-          <p className="mt-3 text-xs text-zinc-500">
+          <p className="mt-3 text-xs text-text-muted">
             Scoring hop: originator claim ↔ buyer token claim. Penalty if both
             near &lt;{MIN_GENUINE_DISTANCE_METERS}m and fast &lt;
             {MIN_GENUINE_TIME_MINUTES} min → ×{PROXIMITY_PENALTY_MULTIPLIER}.
@@ -163,16 +160,16 @@ export default async function PurchaseResultPage({ params }: PageProps) {
           </p>
         </section>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Hop distances & times</h2>
-          <p className="mt-1 text-sm text-zinc-600">
+        <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-text-primary">Hop distances & times</h2>
+          <p className="mt-1 text-sm text-text-secondary">
             Consecutive claims (and purchase) for context. The row marked
             &quot;scores&quot; is originator ↔ buyer claim — the only proximity
             input to genuineness.
           </p>
 
           {hops.length === 0 ? (
-            <p className="mt-4 text-sm text-zinc-500">No hops recorded.</p>
+            <p className="mt-4 text-sm text-text-muted">No hops recorded.</p>
           ) : (
             <ul className="mt-4 space-y-3">
               {hops.map((hop) => (
@@ -181,22 +178,22 @@ export default async function PurchaseResultPage({ params }: PageProps) {
                   className={`rounded-xl border px-4 py-3 text-sm ${
                     hop.scoresProximity
                       ? hop.suspicious
-                        ? "border-amber-300 bg-amber-50"
-                        : "border-emerald-300 bg-emerald-50"
-                      : "border-zinc-200 bg-zinc-50"
+                        ? "border-amber-300 bg-warning-soft"
+                        : "border-primary/30 bg-primary-soft"
+                      : "border-border bg-surface-muted"
                   }`}
                 >
-                  <p className="font-medium text-zinc-900">
+                  <p className="font-medium text-text-primary">
                     {hop.scoresProximity ? "Scoring hop" : `Hop ${hop.index}`}:{" "}
                     {hop.fromLabel} → {hop.toLabel}
                   </p>
-                  <p className="mt-1 text-zinc-600">
+                  <p className="mt-1 text-text-secondary">
                     Distance:{" "}
                     {hop.distance_m != null ? `${hop.distance_m} m` : "—"} · Time:{" "}
                     {hop.time_minutes != null ? `${hop.time_minutes} min` : "—"}
                   </p>
                   {hop.suspicious && (
-                    <p className="mt-1 text-amber-800">
+                    <p className="mt-1 text-warning">
                       Suspicious: both too near and too fast
                     </p>
                   )}
@@ -205,50 +202,52 @@ export default async function PurchaseResultPage({ params }: PageProps) {
             </ul>
           )}
 
-          <p className="mt-4 text-sm text-zinc-600">
+          <p className="mt-4 text-sm text-text-secondary">
             Originator ↔ buyer claim: {purchase.min_hop_distance_m ?? "—"} m ·{" "}
             {purchase.min_hop_time_minutes ?? "—"} min
           </p>
         </section>
 
-        <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-zinc-900">Reward pool & payouts</h2>
-          <p className="mt-2 text-sm text-zinc-600">
+        <section className="rounded-2xl border border-border bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-semibold text-text-primary">Reward pool & payouts</h2>
+          <p className="mt-2 text-sm text-text-secondary">
             scored = ₹{amount} × {(basePct * 100).toFixed(2)}% × {score.toFixed(3)} ={" "}
             ₹{formatRewardAmount(pool.scoredPool)}
           </p>
           {pool.usedZeroScoreFloor ? (
-            <p className="mt-1 text-sm text-amber-800">
+            <p className="mt-1 text-sm text-warning">
               Zero-score floor applied: ₹{amount} ×{" "}
               {(ZERO_SCORE_FLOOR_REWARD_PCT * 100).toFixed(2)}% ={" "}
               <strong>₹{formatRewardAmount(basePool)}</strong>
             </p>
           ) : (
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-1 text-sm text-text-secondary">
               base_pool = <strong>₹{formatRewardAmount(basePool)}</strong>
             </p>
           )}
-          <p className="mt-1 text-xs text-zinc-500">
+          <p className="mt-1 text-xs text-text-muted">
             Weights: buyer {ROLE_WEIGHTS.buyer}, last_referrer {ROLE_WEIGHTS.last_referrer},
             originator {ROLE_WEIGHTS.originator}, forwarder {ROLE_WEIGHTS.forwarder}
           </p>
 
-          {rewardsWithNames.length === 0 ? (
-            <p className="mt-4 text-sm text-zinc-500">
+          {rewardsWithIds.length === 0 ? (
+            <p className="mt-4 text-sm text-text-muted">
               No rewards written (no eligible customer recipients, or pool is zero).
             </p>
           ) : (
             <ul className="mt-4 space-y-2">
-              {rewardsWithNames.map((reward) => (
+              {rewardsWithIds.map((reward) => (
                 <li
                   key={reward.id}
-                  className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 text-sm"
+                  className="flex items-center justify-between rounded-xl border border-border px-4 py-3 text-sm"
                 >
                   <div>
-                    <p className="font-medium text-zinc-900">{reward.name}</p>
-                    <p className="text-zinc-500">{reward.role}</p>
+                    <p className="font-mono font-medium text-text-primary">
+                      {reward.publicId}
+                    </p>
+                    <p className="text-text-muted">{reward.role}</p>
                   </div>
-                  <p className="font-semibold text-emerald-700">
+                  <p className="font-semibold text-primary">
                     ₹{formatRewardAmount(Number(reward.amount))}
                   </p>
                 </li>

@@ -367,10 +367,10 @@ export function CreateTokenForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6 pb-28">
       <div>
-        <h2 className="text-lg font-semibold text-zinc-900">
+        <h2 className="text-lg font-semibold text-text-primary">
           What did you discover today?
         </h2>
-        <p className="mt-1 text-sm text-zinc-600">
+        <p className="mt-1 text-sm text-text-secondary">
           Add 1–{MAX_TOKEN_PHOTOS} photos of your finds. Where possible, include
           a photo of the retail store name or frontage where you are — it could
           be on a product tag, a pillar, or signage. Location comes only when
@@ -379,8 +379,8 @@ export function CreateTokenForm({
       </div>
 
       <div>
-        <p className="mb-1.5 text-sm font-medium text-zinc-700">Your finds</p>
-        <p className="mb-3 text-sm text-zinc-500">
+        <p className="mb-1.5 text-sm font-medium text-text-secondary">Your finds</p>
+        <p className="mb-3 text-sm text-text-muted">
           {photos.length}/{MAX_TOKEN_PHOTOS} photos
         </p>
 
@@ -403,7 +403,7 @@ export function CreateTokenForm({
             return (
               <div
                 key={`${file.name}-${index}`}
-                className="relative overflow-hidden rounded-xl border border-zinc-200"
+                className="relative overflow-hidden rounded-xl border border-border"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
@@ -412,7 +412,7 @@ export function CreateTokenForm({
                   className="h-28 w-full object-cover"
                 />
                 <div className="absolute inset-x-0 bottom-0 flex gap-1 bg-black/50 p-1">
-                  <label className="flex-1 cursor-pointer rounded bg-white/90 py-1 text-center text-[10px] font-medium">
+                  <label className="flex-1 cursor-pointer rounded bg-surface/90 py-1 text-center text-[10px] font-medium">
                     Retake
                     <input
                       type="file"
@@ -427,7 +427,7 @@ export function CreateTokenForm({
                   <button
                     type="button"
                     onClick={() => removePhoto(index)}
-                    className="flex-1 rounded bg-white/90 py-1 text-[10px] font-medium"
+                    className="flex-1 rounded bg-surface/90 py-1 text-[10px] font-medium"
                   >
                     Delete
                   </button>
@@ -439,7 +439,7 @@ export function CreateTokenForm({
             <button
               type="button"
               onClick={() => multiInputRef.current?.click()}
-              className="flex h-28 flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 text-sm font-medium text-zinc-700"
+              className="flex h-28 flex-col items-center justify-center rounded-xl border-2 border-dashed border-border-strong bg-surface-muted text-sm font-medium text-text-secondary"
             >
               + Add
             </button>
@@ -448,12 +448,12 @@ export function CreateTokenForm({
       </div>
 
       {step === "photos" ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
           <button
             type="button"
             onClick={handleWantToShare}
             disabled={busy || photos.length < 1}
-            className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
+            className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-primary px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
           >
             {locating
               ? "Getting location…"
@@ -464,12 +464,12 @@ export function CreateTokenForm({
         </div>
       ) : (
         <>
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-            <p className="text-sm font-medium text-emerald-900">
+          <div className="rounded-2xl border border-primary/20 bg-primary-soft/60 p-4">
+            <p className="text-sm font-medium text-primary">
               Location captured
             </p>
             {coords ? (
-              <p className="mt-1 font-mono text-xs text-zinc-600">
+              <p className="mt-1 font-mono text-xs text-text-secondary">
                 {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
               </p>
             ) : null}
@@ -478,7 +478,7 @@ export function CreateTokenForm({
               onClick={() =>
                 captureLocation().catch((e) => setError(e.message))
               }
-              className="mt-2 text-sm font-medium text-emerald-800 underline"
+              className="mt-2 text-sm font-medium text-primary underline"
             >
               Update location
             </button>
@@ -487,11 +487,11 @@ export function CreateTokenForm({
           <div>
             <label
               htmlFor="category"
-              className="mb-1.5 block text-sm font-medium text-zinc-700"
+              className="mb-1.5 block text-sm font-medium text-text-secondary"
             >
               Category
             </label>
-            <p className="mb-2 text-sm text-zinc-500">
+            <p className="mb-2 text-sm text-text-muted">
               {categorySuggested
                 ? "Suggested — tap to change"
                 : visionHint ?? "Pick the category that fits your find."}
@@ -505,7 +505,7 @@ export function CreateTokenForm({
                 setCategorySuggested(false);
                 setVisionHint(null);
               }}
-              className="min-h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="min-h-12 w-full rounded-xl border border-border-strong bg-surface px-4 py-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-focus-ring/40"
             >
               <option value="" disabled>
                 Select a category…
@@ -519,23 +519,23 @@ export function CreateTokenForm({
           </div>
 
           <div>
-            <p className="mb-1.5 text-sm font-medium text-zinc-700">
+            <p className="mb-1.5 text-sm font-medium text-text-secondary">
               Store where you found it
             </p>
 
             {storeUi.mode === "auto" ? (
               <div className="space-y-3">
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4">
-                  <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">
+                <div className="rounded-2xl border border-primary/25 bg-primary-soft/80 p-4">
+                  <p className="text-xs font-medium uppercase tracking-wide text-primary">
                     You&apos;re at
                   </p>
-                  <p className="mt-1 text-base font-semibold text-zinc-900">
+                  <p className="mt-1 text-base font-semibold text-text-primary">
                     {storeUi.place.name}
                     {storeUi.place.address
                       ? ` — ${storeUi.place.address}`
                       : ""}
                   </p>
-                  <p className="mt-1 text-sm text-zinc-600">
+                  <p className="mt-1 text-sm text-text-secondary">
                     {storeUi.place.distanceM}m away
                   </p>
                 </div>
@@ -545,7 +545,7 @@ export function CreateTokenForm({
                     setStoreUi({ mode: "list" });
                     setSelectedPlace(null);
                   }}
-                  className="w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-sm font-medium text-zinc-800"
+                  className="w-full rounded-xl border border-border-strong bg-surface px-4 py-3 text-sm font-medium text-text-primary"
                 >
                   Not here? Choose another store
                 </button>
@@ -554,7 +554,7 @@ export function CreateTokenForm({
 
             {storeUi.mode === "list" ? (
               <div className="space-y-2">
-                <p className="mb-2 text-sm text-zinc-500">
+                <p className="mb-2 text-sm text-text-muted">
                   Are you at one of these?
                 </p>
                 {nearbyPlaces.map((p) => {
@@ -569,12 +569,12 @@ export function CreateTokenForm({
                       }}
                       className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors ${
                         selected
-                          ? "border-emerald-600 bg-emerald-50"
-                          : "border-zinc-200 bg-white hover:border-zinc-300"
+                          ? "border-primary bg-primary-soft"
+                          : "border-border bg-surface hover:border-border-strong"
                       }`}
                     >
-                      <p className="font-medium text-zinc-900">{p.name}</p>
-                      <p className="mt-0.5 text-sm text-zinc-500">
+                      <p className="font-medium text-text-primary">{p.name}</p>
+                      <p className="mt-0.5 text-sm text-text-muted">
                         {p.distanceM}m away
                         {p.address ? ` · ${p.address}` : ""}
                         {p.partnerStoreId ? " · partner store" : ""}
@@ -588,7 +588,7 @@ export function CreateTokenForm({
                     setStoreUi({ mode: "other" });
                     setSelectedPlace(null);
                   }}
-                  className="w-full rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-3 text-left text-sm font-medium text-zinc-700"
+                  className="w-full rounded-2xl border border-dashed border-border-strong bg-surface-muted px-4 py-3 text-left text-sm font-medium text-text-secondary"
                 >
                   Other / not listed
                 </button>
@@ -601,7 +601,7 @@ export function CreateTokenForm({
                   <button
                     type="button"
                     onClick={() => setStoreNameText(visionStoreName)}
-                    className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-left text-sm text-emerald-900"
+                    className="w-full rounded-2xl border border-primary/25 bg-primary-soft px-4 py-3 text-left text-sm text-primary"
                   >
                     Looks like: <span className="font-semibold">{visionStoreName}</span>{" "}
                     — tap to use
@@ -611,7 +611,7 @@ export function CreateTokenForm({
                   <button
                     type="button"
                     onClick={() => setStoreUi({ mode: "list" })}
-                    className="text-sm font-medium text-emerald-800 underline"
+                    className="text-sm font-medium text-primary underline"
                   >
                     ← Back to nearby list
                   </button>
@@ -624,10 +624,10 @@ export function CreateTokenForm({
                     setSelectedPlace(null);
                   }}
                   placeholder="e.g. Body Shop, Phoenix Mall"
-                  className="min-h-12 w-full rounded-xl border border-zinc-300 px-4 py-3 text-base"
+                  className="min-h-12 w-full rounded-xl border border-border-strong px-4 py-3 text-base"
                 />
                 {storeUi.mode === "manual" ? (
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-text-muted">
                     No stores found nearby — type the store name.
                   </p>
                 ) : null}
@@ -636,16 +636,16 @@ export function CreateTokenForm({
           </div>
 
           {error ? (
-            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="rounded-xl bg-error-soft px-4 py-3 text-sm text-error">
               {error}
             </p>
           ) : null}
 
-          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-surface/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
             <button
               type="submit"
               disabled={submitting}
-              className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
+              className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-primary px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-primary-hover disabled:opacity-60"
             >
               {submitting ? "Sharing…" : "Share"}
             </button>
@@ -654,7 +654,7 @@ export function CreateTokenForm({
       )}
 
       {step === "photos" && error ? (
-        <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className="rounded-xl bg-error-soft px-4 py-3 text-sm text-error">
           {error}
         </p>
       ) : null}

@@ -10,23 +10,23 @@ import type { ChainSeedReport } from "@/lib/demo/seed";
 
 function ChainReportCard({ report }: { report: ChainSeedReport }) {
   return (
-    <article className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm">
-      <h3 className="font-semibold text-zinc-900">{report.label}</h3>
-      <p className="mt-1 font-mono text-xs text-zinc-600">
+    <article className="rounded-xl border border-border bg-surface-muted p-4 text-sm">
+      <h3 className="font-semibold text-text-primary">{report.label}</h3>
+      <p className="mt-1 font-mono text-xs text-text-secondary">
         Codes: {report.codes.join(" · ")}
       </p>
-      <p className="mt-3 text-zinc-800">
+      <p className="mt-3 text-text-primary">
         Genuineness score:{" "}
-        <strong className="text-emerald-800">
+        <strong className="text-primary">
           {report.genuinenessScore.toFixed(3)}
         </strong>
       </p>
-      <ul className="mt-2 list-inside list-disc text-zinc-600">
+      <ul className="mt-2 list-inside list-disc text-text-secondary">
         {report.reasons.map((r) => (
           <li key={r}>{r}</li>
         ))}
       </ul>
-      <p className="mt-3 text-zinc-800">
+      <p className="mt-3 text-text-primary">
         Purchase ₹{report.amount.toFixed(2)} · pool{" "}
         <strong>₹{report.basePool.toFixed(2)}</strong>
         {report.usedZeroScoreFloor ? " (zero-score floor)" : ""}
@@ -34,10 +34,10 @@ function ChainReportCard({ report }: { report: ChainSeedReport }) {
       <ul className="mt-2 space-y-1">
         {report.rewards.map((r) => (
           <li key={`${r.role}-${r.userId}`} className="flex justify-between gap-2">
-            <span className="font-mono text-zinc-700">
+            <span className="font-mono text-text-secondary">
               {r.role} · {r.publicId}
             </span>
-            <span className="font-medium text-emerald-800">
+            <span className="font-medium text-primary">
               ₹{r.amount.toFixed(2)}
             </span>
           </li>
@@ -73,9 +73,9 @@ export function DemoDataPanel() {
   };
 
   return (
-    <section className="mt-8 rounded-2xl border border-amber-200 bg-amber-50/60 p-5 shadow-sm">
-      <h2 className="font-semibold text-zinc-900">Demo data</h2>
-      <p className="mt-2 text-sm text-zinc-600">
+    <section className="mt-8 rounded-2xl border border-warning/25 bg-warning-soft/60 p-5 shadow-sm">
+      <h2 className="font-semibold text-text-primary">Demo data</h2>
+      <p className="mt-2 text-sm text-text-secondary">
         Load depth-4 branching trees (parent → child → grandchild →
         great-grandchild). Roots:{" "}
         <span className="font-mono">DEMOT1A</span>,{" "}
@@ -93,7 +93,7 @@ export function DemoDataPanel() {
           type="button"
           disabled={pending}
           onClick={() => run("load")}
-          className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+          className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white hover:bg-primary-hover disabled:opacity-60"
         >
           {pending ? "Working… (do not close)" : "Load demo data"}
         </button>
@@ -101,34 +101,34 @@ export function DemoDataPanel() {
           type="button"
           disabled={pending}
           onClick={() => run("reset")}
-          className="rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
+          className="rounded-xl border border-border-strong bg-surface px-4 py-2.5 text-sm font-medium text-text-primary hover:bg-surface-muted disabled:opacity-60"
         >
           Reset demo data
         </button>
       </div>
 
       {pending && (
-        <p className="mt-3 text-sm text-amber-900">
+        <p className="mt-3 text-sm text-warning">
           Seeding in progress — stay on this page until it finishes.
         </p>
       )}
 
       {result && !result.ok && (
-        <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className="mt-4 rounded-xl bg-error-soft px-4 py-3 text-sm text-error">
           {result.error}
         </p>
       )}
 
       {result?.ok && result.action === "reset" && (
-        <p className="mt-4 rounded-xl bg-white px-4 py-3 text-sm text-zinc-700">
+        <p className="mt-4 rounded-xl bg-surface px-4 py-3 text-sm text-text-secondary">
           {result.message}
         </p>
       )}
 
       {result?.ok && result.action === "load" && (
         <div className="mt-4 space-y-4">
-          <p className="text-sm text-zinc-700">{result.summary}</p>
-          <p className="text-sm text-zinc-700">
+          <p className="text-sm text-text-secondary">{result.summary}</p>
+          <p className="text-sm text-text-secondary">
             Roots:{" "}
             <span className="font-mono">{result.assistCodes.join(", ")}</span>
           </p>

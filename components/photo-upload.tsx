@@ -22,10 +22,10 @@ export function PhotoUpload({
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-zinc-700">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-text-secondary">
         {label}
       </label>
-      {hint && <p className="mb-2 text-sm text-zinc-500">{hint}</p>}
+      {hint && <p className="mb-2 text-sm text-text-muted">{hint}</p>}
 
       <input
         ref={inputRef}
@@ -43,20 +43,20 @@ export function PhotoUpload({
           <img
             src={previewUrl}
             alt={`${label} preview`}
-            className="h-44 w-full rounded-xl border border-zinc-200 object-cover"
+            className="h-44 w-full rounded-xl border border-border object-cover"
           />
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="min-h-12 rounded-xl border border-zinc-300 px-4 py-3 text-base font-medium text-zinc-700"
+              className="min-h-12 rounded-xl border border-border-strong px-4 py-3 text-base font-medium text-text-secondary"
             >
               Retake
             </button>
             <button
               type="button"
               onClick={() => onChange(null)}
-              className="min-h-12 rounded-xl border border-zinc-300 px-4 py-3 text-base font-medium text-zinc-700"
+              className="min-h-12 rounded-xl border border-border-strong px-4 py-3 text-base font-medium text-text-secondary"
             >
               Remove
             </button>
@@ -66,12 +66,12 @@ export function PhotoUpload({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex min-h-[7.5rem] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50 px-4 py-8 text-center transition-colors active:border-emerald-500 hover:border-emerald-400 hover:bg-emerald-50/50"
+          className="flex min-h-[7.5rem] w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-border-strong bg-surface-muted px-4 py-8 text-center transition-colors active:border-primary hover:border-primary/40 hover:bg-primary-soft/50"
         >
-          <span className="text-base font-semibold text-zinc-800">
+          <span className="text-base font-semibold text-text-primary">
             Take or upload photo
           </span>
-          <span className="mt-1 text-sm text-zinc-500">
+          <span className="mt-1 text-sm text-text-muted">
             Opens camera on your phone
           </span>
         </button>

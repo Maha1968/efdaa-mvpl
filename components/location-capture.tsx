@@ -50,17 +50,17 @@ export function LocationCapture({
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4">
-      <p className="text-sm font-medium text-zinc-700">Share your location</p>
-      <p className="mt-1 text-xs text-zinc-500">
-        Required to claim this find — GPS only, no maps service.
+    <div className="rounded-2xl border border-border bg-surface p-4">
+      <p className="text-sm font-medium text-text-secondary">Share your location</p>
+      <p className="mt-1 text-xs text-text-muted">
+        Needed once so we know where you opened this find.
       </p>
 
       <button
         type="button"
         onClick={captureLocation}
         disabled={locating}
-        className="mt-3 min-h-12 w-full rounded-xl border border-zinc-300 bg-zinc-50 px-4 py-3.5 text-base font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-60"
+        className="mt-3 min-h-12 w-full rounded-xl border border-border-strong bg-surface-muted px-4 py-3.5 text-base font-medium text-text-primary transition-colors hover:bg-border disabled:opacity-60"
       >
         {locating
           ? "Getting location…"
@@ -70,13 +70,13 @@ export function LocationCapture({
       </button>
 
       {locating && (
-        <p className="mt-2 text-sm text-zinc-600">
+        <p className="mt-2 text-sm text-text-secondary">
           Waiting for GPS — allow location when your browser asks.
         </p>
       )}
 
       {coords && (
-        <p className="mt-2 text-xs text-emerald-700">
+        <p className="mt-2 text-xs text-primary">
           Location captured: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
         </p>
       )}
@@ -85,9 +85,9 @@ export function LocationCapture({
         <div className="mt-4">
           <label
             htmlFor="claim-location-text"
-            className="mb-1.5 block text-sm font-medium text-zinc-700"
+            className="mb-1.5 block text-sm font-medium text-text-secondary"
           >
-            Place name <span className="font-normal text-zinc-400">(optional)</span>
+            Place name <span className="font-normal text-text-muted">(optional)</span>
           </label>
           <input
             id="claim-location-text"
@@ -95,7 +95,7 @@ export function LocationCapture({
             value={locationText}
             onChange={(e) => onLocationTextChange(e.target.value)}
             placeholder='e.g. "Phoenix Mall"'
-            className="w-full rounded-xl border border-zinc-300 px-4 py-3 text-base outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            className="w-full rounded-xl border border-border-strong px-4 py-3 text-base outline-none focus:border-primary focus:ring-2 focus:ring-focus-ring/40"
           />
         </div>
       )}

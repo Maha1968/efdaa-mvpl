@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { cn } from "@/lib/utils/cn";
 
 type NavLink = { href: string; label: string };
 
+/** Compact pill nav — prefer CustomerBottomNav / AdminShell for primary chrome. */
 export function DashboardNav({
   current,
   links,
@@ -10,18 +12,20 @@ export function DashboardNav({
   links: NavLink[];
 }) {
   return (
-    <nav className="mb-8 flex flex-wrap gap-2">
+    <nav className="mb-6 flex flex-wrap gap-2" aria-label="Section">
       {links.map((link) => {
         const active = current === link.href;
         return (
           <Link
             key={link.href}
             href={link.href}
-            className={`rounded-full px-3 py-1.5 text-sm font-medium ${
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "rounded-full px-3.5 py-2 text-sm font-medium transition-colors",
               active
-                ? "bg-emerald-700 text-white"
-                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-            }`}
+                ? "bg-primary text-white"
+                : "bg-surface-muted text-text-secondary hover:bg-border hover:text-text-primary",
+            )}
           >
             {link.label}
           </Link>

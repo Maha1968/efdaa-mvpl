@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { LocationCapture } from "@/components/location-capture";
 import { ExpiryCountdown } from "@/components/expiry-countdown";
 import { TokenFindsHero } from "@/components/token-finds-hero";
+import { StickyActionBar } from "@/components/ui/sticky-action-bar";
+import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button-link";
 import { claimToken, markTokenShared } from "@/lib/actions/tokens";
 import { getTokenShareUrl } from "@/lib/utils/app-url";
 import type { TokenWithDetails } from "@/lib/tokens/helpers";
@@ -66,21 +68,37 @@ export function TokenClaimFlow({
     setLoading(true);
     setError(null);
 
-    const result = await claimToken({
-      parentCode: token.code,
-      claimLat: coords.lat,
-      claimLng: coords.lng,
-      claimLocationText: locationText.trim() || undefined,
-    });
+    try {
+      const result = await claimToken({
+        parentCode: token.code,
+        claimLat: coords.lat,
+        claimLng: coords.lng,
+        claimLocationText: locationText.trim() || undefined,
+      });
 
-    if (result.error) {
-      setError(result.error);
+      if (result.error) {
+        console.error("claimToken failed:", result.error);
+        setError(result.error);
+        return;
+      }
+
+      if (!result.code) {
+        const msg = "Claim succeeded but no token code was returned.";
+        console.error(msg, result);
+        setError(msg);
+        return;
+      }
+
+      router.replace(`/t/${result.code}`);
+      router.refresh();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong while claiming.";
+      console.error("claimToken threw:", err);
+      setError(message);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.replace(`/t/${result.code}`);
-    router.refresh();
   }
 
   async function handleShareClick() {
@@ -89,17 +107,17 @@ export function TokenClaimFlow({
 
   if (previewOnly || needsClaim) {
     return (
-      <div className="space-y-6 pb-28">
+      <div className="space-y-6">
         <div>
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
             EFDAA
           </p>
-          <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-page-title mt-3">
             {senderFirstName} shared something they think you&apos;ll love.
           </h1>
-          <p className="mt-2 text-sm text-zinc-600">
-            Share your location to open their find. Location is required — without
-            it you can&apos;t redeem or share.
+          <p className="text-supporting mt-2">
+            Share your location to open their find. We only use it to confirm
+            this recommendation — without it you can&apos;t redeem or share.
           </p>
         </div>
 
@@ -109,15 +127,19 @@ export function TokenClaimFlow({
         />
 
         {previewOnly ? (
-          <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-            <Link
+          <StickyActionBar>
+            <ButtonLink
               href={signInHref ?? `/login?next=/t/${token.code}`}
-              className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
+              fullWidth
             >
               Sign in to claim
-            </Link>
-          </div>
-        ) : expired ? null : (
+            </ButtonLink>
+          </StickyActionBar>
+        ) : expired ? (
+          <p className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
+            This offer has expired — sharing and redeeming are closed.
+          </p>
+        ) : (
           <>
             <LocationCapture
               coords={coords}
@@ -128,34 +150,38 @@ export function TokenClaimFlow({
             />
 
             {error && (
-              <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+              <p
+                role="alert"
+                className="rounded-xl bg-error-soft px-4 py-3 text-sm text-error"
+              >
                 {error}
               </p>
             )}
 
-            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-              <button
-                type="button"
+            <StickyActionBar>
+              <Button
+                fullWidth
                 onClick={handleClaim}
                 disabled={loading || !coords}
-                className="mx-auto flex min-h-12 w-full max-w-lg items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800 disabled:opacity-60"
+                loading={loading}
               >
-                {loading ? "Claiming…" : "Claim with my location"}
-              </button>
-            </div>
+                Share location and view
+              </Button>
+            </StickyActionBar>
           </>
         )}
+        <div className="h-24 sm:hidden" aria-hidden />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 pb-28">
+    <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
           EFDAA
         </p>
-        <h1 className="mt-3 text-2xl font-semibold tracking-tight text-zinc-900">
+        <h1 className="text-page-title mt-3">
           {token.depth === 0
             ? "Your find is ready to share."
             : `${senderFirstName} shared something they think you&apos;ll love.`}
@@ -169,24 +195,24 @@ export function TokenClaimFlow({
           expiresAt={token.expires_at}
           onExpiredChange={setExpired}
         />
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+        <p className="text-supporting mt-3">
           When you buy, you both earn EFDAA points. Redeem once anytime before
           the timer ends — share as often as you like.
         </p>
         {(token.product?.name || token.category) && (
-          <p className="mt-2 text-sm text-zinc-500">{findLabel}</p>
+          <p className="mt-2 text-sm text-text-muted">{findLabel}</p>
         )}
       </div>
 
       {alreadyRedeemed && !expired && (
-        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <p className="rounded-xl bg-success-soft px-4 py-3 text-sm text-success">
           You&apos;ve already redeemed this. You can still share it while
           it&apos;s active.
         </p>
       )}
 
       {!expired && !canShareFurther && token.depth > 0 && (
-        <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <p className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
           This chain has reached its maximum length. You can still redeem, but
           friends who open your link cannot claim further shares.
         </p>
@@ -194,18 +220,16 @@ export function TokenClaimFlow({
 
       {!expired && (
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">
-            Share or redeem
-          </h2>
-          <p className="mt-1 text-sm text-zinc-600">
+          <h2 className="text-section">Share or redeem</h2>
+          <p className="text-supporting mt-1">
             Both stay open for the same countdown. Redeem is once; share is
             unlimited.
           </p>
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-white/95 p-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
-        <div className="mx-auto flex max-w-lg flex-col gap-2 sm:gap-3">
+      <StickyActionBar>
+        <div className="flex flex-col gap-2">
           {!actionsDisabled && (
             <a
               href={whatsappHref}
@@ -214,25 +238,23 @@ export function TokenClaimFlow({
               onClick={() => {
                 void handleShareClick();
               }}
-              className="flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
+              className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-[#25D366] px-4 text-base font-medium text-white transition-colors hover:bg-[#1ebe5d]"
             >
-              Share
+              Share on WhatsApp
             </a>
           )}
           {canRedeem ? (
-            <Link
-              href={`/redeem/${token.code}`}
-              className="flex min-h-12 w-full items-center justify-center rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-emerald-800"
-            >
+            <ButtonLink href={`/redeem/${token.code}`} variant="secondary" fullWidth>
               Redeem
-            </Link>
+            </ButtonLink>
           ) : alreadyRedeemed && !actionsDisabled ? (
-            <p className="py-2 text-center text-sm text-zinc-500">
-              Redeem is no longer available for this token.
+            <p className="py-2 text-center text-sm text-text-muted">
+              Redeem is no longer available for this find.
             </p>
           ) : null}
         </div>
-      </div>
+      </StickyActionBar>
+      <div className="h-28 sm:hidden" aria-hidden />
     </div>
   );
 }

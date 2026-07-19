@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Poppins, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const poppins = Poppins({
+  variable: "--font-poppins",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
@@ -14,13 +16,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "EFDAA",
-  description: "Offline referral attribution — share tokens, track influence, reward your chain.",
+  description:
+    "Share discoveries you love. Friends earn EFDAA points when they buy — genuine word-of-mouth, made measurable.",
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  // Allow pinch-zoom for accessibility; pages are sized for 375px without it.
+  themeColor: "#5b21b6",
 };
 
 export default function RootLayout({
@@ -31,9 +34,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${poppins.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900">
+      <body className="min-h-full flex flex-col bg-background font-sans text-text-primary">
         {children}
       </body>
     </html>

@@ -577,24 +577,26 @@ ON /demo: label BUYER CLAIMED vs PURCHASE (from receipt) separately; scoring hop
 fraud score".
 ```
 
-### Stage 7J — New create flow: multi-photo, optional barcode, deferred GPS + store suggestion
+### Stage 7J — New create flow: multi-photo, deferred GPS + store suggestion
 ```
 Re-read SPEC.md. This REPLACES the Stage 3 create flow. Do NOT change lineage, expiry, reward,
 or proximity/genuineness rules — only the capture flow and the fields it writes (plus the
 barcode_match tri-state so not_provided is neutral).
 
 ORDER (photos first, GPS last):
-1. Create screen: "What would you like to recommend?"
-2. User takes 1–5 PHOTOS (max 5; thumbnails, delete/retake). Barcode photo OPTIONAL.
-   Store-signage photo OPTIONAL.
-3. On "I want to share": capture GPS; category dropdown (vision API optional later);
+1. Create screen: "Found something you love?" / "What did you discover today?"
+2. User takes 1–5 PHOTOS (max 5; thumbnails, delete/retake). Do not ask for a separate barcode
+   photo or separate store-frontage photo. Where possible, ask the user to include the retail
+   store name/frontage among these same 1–5 photos — it may be on a product tag, pillar, or signage.
+3. On "Share": capture GPS; category dropdown (with optional vision suggestion);
    suggest nearby partner stores from GPS or type store name.
-4. Create token with token_photos, optional barcode, category, originator_store_id or
+4. Create token with token_photos, category, originator_store_id or
    store_name_text + store_resolution, claim GPS, expires_at. Then WhatsApp share.
 
-BARCODE OPTIONAL — not_provided is NEUTRAL:
+NO BARCODE ASK IN CREATE — not_provided remains NEUTRAL:
 - barcode_match = match | mismatch | not_provided
-- No barcode on token → not_provided → do NOT apply BARCODE_MISS_MULTIPLIER
+- Create does not ask for a barcode; no barcode on token → not_provided → do NOT apply
+  BARCODE_MISS_MULTIPLIER
 - Only mismatch applies ×0.5
 
 Manual fallbacks so the pilot works with ZERO paid APIs. Mobile-first.
@@ -664,6 +666,8 @@ PART 2 — Google Places Nearby Search (SERVER `/api/places/nearby`):
   "Not here? Choose another store" (never lock). Else "Are you at one of these?" + Other.
 - Selection → matched (partner) / suggested (Google) / user_entered (typed). Soft-fail →
   manual field (+ optional "Looks like: …" from vision).
+- If Places returns nothing within the configured radius, show only the manual store-name field
+  (plus the optional vision-name prefill). Do NOT list partner stores that are outside the radius.
 
 Keys: ANTHROPIC_API_KEY, GOOGLE_MAPS_API_KEY in .env.local (and Vercel). Never expose to browser.
 ```
@@ -675,8 +679,8 @@ Keys: ANTHROPIC_API_KEY, GOOGLE_MAPS_API_KEY in .env.local (and Vercel). Never e
 - [ ] Stage 0: Live Vercel URL loads.
 - [ ] Stage 1: I can sign up, log in, see my name.
 - [ ] Stage 2: All tables + storage buckets + config exist, with sample data.
-- [ ] Stage 3: I can create a token as originator (no purchase) with product photo, barcode photo,
-      GPS location, optional place name, and expiry — and share it.
+- [ ] Stage 3: I can create a token as originator (no purchase) with 1–5 find photos,
+      GPS location, store selection/manual name, and expiry — and share it.
 - [ ] Stage 4: Claiming captures my location + time; forwarding creates a new token; depth
       increases; the 5-person cap blocks; an EXPIRED link shows as expired and does nothing.
 - [ ] Stage 5: A receipt uploads with originator store locked, GPS, receipt date/time, barcode;
@@ -707,7 +711,8 @@ Keys: ANTHROPIC_API_KEY, GOOGLE_MAPS_API_KEY in .env.local (and Vercel). Never e
       originator↔buyer claim; mobile at 375px.
 - [ ] Stage 7H: PROXIMITY_PENALTY_MULTIPLIER = 0.01; /demo labels BUYER CLAIMED vs PURCHASE
       (from receipt) separately; DEMOPRX score 0.01 (~₹0.65 on ₹1299); claim never uses receipt.
-- [ ] Stage 7J: Create flow is photos-first (1–5), barcode optional, GPS on "I want to share";
+- [ ] Stage 7J: Create flow is photos-first (1–5), with no separate barcode or storefront upload;
+      store frontage/name may be included in those same photos; GPS is captured on Share;
       barcode_match not_provided does not apply ×0.5; schema_stage7j.sql applied.
 - [ ] Stage 7L: Create uses discovery copy ("finds" / Share); receiver leads with sender name +
       photos + soft EFDAA points line + live countdown from expires_at; logged-out share link
@@ -715,7 +720,8 @@ Keys: ANTHROPIC_API_KEY, GOOGLE_MAPS_API_KEY in .env.local (and Vercel). Never e
 - [ ] Stage 7M: Opening a friend's link requires location claim before finds/Share/Redeem;
       after claim both Share and Redeem are equal (redeem once); same timer for both.
 - [ ] Stage 8A: Create flow vision suggests category + visible store; Places nearby + auto-match
-      with always-visible "Not here?"; without API keys, manual category/store still creates.
+      with always-visible "Not here?"; empty Places results show manual store entry only (no distant
+      partner list); without API keys, manual category/store still creates.
 
 ---
 

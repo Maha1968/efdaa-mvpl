@@ -45,10 +45,10 @@ export default async function RedeemPage({ params }: PageProps) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
         <div className="w-full max-w-md text-center">
-          <h1 className="text-2xl font-semibold text-zinc-900">
+          <h1 className="text-2xl font-semibold text-text-primary">
             This offer has expired
           </h1>
-          <Link href="/" className="mt-6 inline-block text-emerald-700 underline">
+          <Link href="/" className="mt-6 inline-block text-primary underline">
             Back home
           </Link>
         </div>
@@ -60,16 +60,16 @@ export default async function RedeemPage({ params }: PageProps) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
         <div className="w-full max-w-md text-center">
-          <h1 className="text-2xl font-semibold text-zinc-900">
+          <h1 className="text-2xl font-semibold text-text-primary">
             Already redeemed
           </h1>
-          <p className="mt-3 text-sm text-zinc-600">
+          <p className="mt-3 text-sm text-text-secondary">
             This token has already been redeemed. You can still share it with
             others.
           </p>
           <Link
             href={`/t/${code}`}
-            className="mt-6 inline-block w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white"
+            className="mt-6 inline-block w-full rounded-xl bg-primary px-4 py-3.5 text-base font-medium text-white"
           >
             Back to token — share again
           </Link>
@@ -114,8 +114,8 @@ export default async function RedeemPage({ params }: PageProps) {
     return (
       <main className="flex flex-1 flex-col px-6 py-10">
         <div className="mx-auto w-full max-w-md text-center">
-          <h1 className="text-xl font-semibold text-zinc-900">Setup incomplete</h1>
-          <p className="mt-2 text-sm text-zinc-600">
+          <h1 className="text-xl font-semibold text-text-primary">Setup incomplete</h1>
+          <p className="mt-2 text-sm text-text-secondary">
             This recommendation has no originator store recorded.
           </p>
         </div>
@@ -135,18 +135,18 @@ export default async function RedeemPage({ params }: PageProps) {
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
       <div className="mx-auto w-full max-w-md">
-        <Link href={`/t/${code}`} className="text-sm text-emerald-700 underline">
+        <Link href={`/t/${code}`} className="text-sm text-primary underline">
           ← Back to token
         </Link>
 
         <div className="mb-8 mt-4">
-          <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
+          <p className="text-sm font-medium uppercase tracking-widest text-primary">
             Redeem
           </p>
-          <h1 className="mt-3 text-2xl font-semibold text-zinc-900">
+          <h1 className="mt-3 text-2xl font-semibold text-text-primary">
             Submit your purchase
           </h1>
-          <p className="mt-2 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-text-secondary">
             Buy at the originator&apos;s store, capture your location there,
             enter the receipt date/time
             {token.scanned_barcode ? " and barcode" : ""}, and upload a photo of

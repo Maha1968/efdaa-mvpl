@@ -32,22 +32,22 @@ export default async function PurchaseSubmittedPage({
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
       <div className="mx-auto w-full max-w-md text-center">
-        <p className="text-sm font-medium uppercase tracking-widest text-emerald-700">
+        <p className="text-sm font-medium uppercase tracking-widest text-primary">
           Submitted
         </p>
-        <h1 className="mt-3 text-2xl font-semibold text-zinc-900">
+        <h1 className="mt-3 text-2xl font-semibold text-text-primary">
           Receipt uploaded
         </h1>
-        <p className="mt-3 text-sm text-zinc-600">
+        <p className="mt-3 text-sm text-text-secondary">
           Your purchase is <strong>pending validation</strong>. We&apos;ll check
           the receipt and update the reward chain once approved.
         </p>
 
-        <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6 text-left shadow-sm">
-          <p className="text-sm text-zinc-500">Amount</p>
-          <p className="text-lg font-semibold text-zinc-900">₹{purchase.amount}</p>
-          <p className="mt-3 text-sm text-zinc-500">Time since originator shared</p>
-          <p className="text-sm text-zinc-900">
+        <div className="mt-6 rounded-2xl border border-border bg-white p-6 text-left shadow-sm">
+          <p className="text-sm text-text-muted">Amount</p>
+          <p className="text-lg font-semibold text-text-primary">₹{purchase.amount}</p>
+          <p className="mt-3 text-sm text-text-muted">Time since originator shared</p>
+          <p className="text-sm text-text-primary">
             {purchase.time_to_purchase_hours ?? "—"} hours
             {purchase.receipt_purchased_at
               ? ` (from receipt ${new Date(purchase.receipt_purchased_at).toLocaleString()})`
@@ -57,14 +57,14 @@ export default async function PurchaseSubmittedPage({
 
         <Link
           href={`/t/${code}`}
-          className="mt-4 inline-block w-full rounded-xl border border-emerald-700 bg-white px-4 py-3.5 text-base font-medium text-emerald-800"
+          className="mt-4 inline-block w-full rounded-xl border border-primary bg-white px-4 py-3.5 text-base font-medium text-primary"
         >
           Share this offer with others
         </Link>
 
         <Link
           href="/"
-          className="mt-3 inline-block w-full rounded-xl bg-emerald-700 px-4 py-3.5 text-base font-medium text-white"
+          className="mt-3 inline-block w-full rounded-xl bg-primary px-4 py-3.5 text-base font-medium text-white"
         >
           Back home
         </Link>

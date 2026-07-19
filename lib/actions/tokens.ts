@@ -144,128 +144,170 @@ export async function createOriginatorToken(input: CreateTokenInput) {
  * If they already claimed this parent, returns their existing child code.
  */
 export async function claimToken(input: ForwardTokenInput) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { error: "You must be signed in to claim a token." };
-  }
+    if (!user) {
+      return { error: "You must be signed in to claim a token." };
+    }
 
-  if (await isAdminUser()) {
-    return { error: "Administrators cannot share or claim tokens." };
-  }
+    if (await isAdminUser()) {
+      return { error: "Administrators cannot share or claim tokens." };
+    }
 
-  if (
-    input.claimLat == null ||
-    input.claimLng == null ||
-    Number.isNaN(input.claimLat) ||
-    Number.isNaN(input.claimLng)
-  ) {
-    return { error: "Share your location to claim this find." };
-  }
+    if (
+      input.claimLat == null ||
+      input.claimLng == null ||
+      Number.isNaN(input.claimLat) ||
+      Number.isNaN(input.claimLng)
+    ) {
+      return { error: "Share your location to claim this find." };
+    }
 
-  const { data: parent, error: parentError } = await supabase
-    .from("tokens")
-    .select("*")
-    .eq("code", input.parentCode)
-    .single();
-
-  if (parentError || !parent) {
-    return { error: "Token not found." };
-  }
-
-  if (parent.holder_user_id === user.id) {
-    return { code: parent.code };
-  }
-
-  if (new Date(parent.expires_at).getTime() <= Date.now()) {
-    return { error: "This offer has expired." };
-  }
-
-  if (parent.depth >= 4) {
-    return { error: "This chain has reached its maximum length." };
-  }
-
-  const { data: existing } = await supabase
-    .from("tokens")
-    .select("code")
-    .eq("parent_token_id", parent.id)
-    .eq("holder_user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (existing?.code) {
-    return { code: existing.code };
-  }
-
-  let code = generateTokenCode();
-  let attempts = 0;
-
-  while (attempts < 5) {
-    const { data: child, error: insertError } = await supabase
+    const { data: parent, error: parentError } = await supabase
       .from("tokens")
-      .insert({
-        code,
-        holder_user_id: user.id,
-        parent_token_id: parent.id,
-        root_token_id: parent.root_token_id ?? parent.id,
-        depth: parent.depth + 1,
-        product_id: parent.product_id,
-        offer_id: parent.offer_id,
-        scanned_barcode: parent.scanned_barcode,
-        product_photo_url: parent.product_photo_url,
-        barcode_photo_url: parent.barcode_photo_url,
-        store_signage_photo_url: parent.store_signage_photo_url,
-        claim_lat: input.claimLat,
-        claim_lng: input.claimLng,
-        claim_location_text: input.claimLocationText || null,
-        originator_store_id: parent.originator_store_id,
-        category: parent.category,
-        store_name_text: parent.store_name_text,
-        store_resolution: parent.store_resolution,
-        expires_at: parent.expires_at,
-      })
-      .select("id, code")
+      .select("*")
+      .eq("code", input.parentCode)
       .single();
 
-    if (insertError) {
-      if (insertError.code === "23505") {
-        code = generateTokenCode();
-        attempts++;
-        continue;
+    if (parentError || !parent) {
+      console.error("claimToken: parent lookup failed", parentError);
+      return {
+        error: parentError?.message
+          ? `Token not found: ${parentError.message}`
+          : "Token not found.",
+      };
+    }
+
+    if (parent.holder_user_id === user.id) {
+      return { code: parent.code };
+    }
+
+    if (new Date(parent.expires_at).getTime() <= Date.now()) {
+      return { error: "This offer has expired." };
+    }
+
+    if (parent.depth >= 4) {
+      return { error: "This chain has reached its maximum length." };
+    }
+
+    const { data: existing, error: existingError } = await supabase
+      .from("tokens")
+      .select("code")
+      .eq("parent_token_id", parent.id)
+      .eq("holder_user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("claimToken: existing child lookup failed", existingError);
+      return { error: existingError.message };
+    }
+
+    if (existing?.code) {
+      return { code: existing.code };
+    }
+
+    let code = generateTokenCode();
+    let attempts = 0;
+
+    while (attempts < 5) {
+      const { data: child, error: insertError } = await supabase
+        .from("tokens")
+        .insert({
+          code,
+          holder_user_id: user.id,
+          parent_token_id: parent.id,
+          root_token_id: parent.root_token_id ?? parent.id,
+          depth: parent.depth + 1,
+          product_id: parent.product_id,
+          offer_id: parent.offer_id,
+          scanned_barcode: parent.scanned_barcode,
+          product_photo_url: parent.product_photo_url,
+          barcode_photo_url: parent.barcode_photo_url,
+          store_signage_photo_url: parent.store_signage_photo_url,
+          claim_lat: input.claimLat,
+          claim_lng: input.claimLng,
+          claim_location_text: input.claimLocationText || null,
+          originator_store_id: parent.originator_store_id,
+          category: parent.category,
+          store_name_text: parent.store_name_text,
+          store_resolution: parent.store_resolution,
+          expires_at: parent.expires_at,
+        })
+        .select("id, code")
+        .single();
+
+      if (insertError) {
+        console.error("claimToken: tokens insert failed", {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint,
+        });
+        if (insertError.code === "23505") {
+          code = generateTokenCode();
+          attempts++;
+          continue;
+        }
+        return {
+          error: `Could not claim token: ${insertError.message}${
+            insertError.details ? ` (${insertError.details})` : ""
+          }`,
+        };
       }
-      return { error: insertError.message };
+
+      const { data: parentPhotos, error: photosReadError } = await supabase
+        .from("token_photos")
+        .select("url, sort_order")
+        .eq("token_id", parent.id)
+        .order("sort_order");
+
+      if (photosReadError) {
+        console.error("claimToken: parent photos read failed", photosReadError);
+      }
+
+      if (parentPhotos?.length) {
+        const { error: photosInsertError } = await supabase
+          .from("token_photos")
+          .insert(
+            parentPhotos.map((p) => ({
+              token_id: child.id,
+              url: p.url,
+              sort_order: p.sort_order,
+            })),
+          );
+        if (photosInsertError) {
+          console.error(
+            "claimToken: token_photos insert failed",
+            photosInsertError,
+          );
+        }
+      }
+
+      await logReferralEvent({
+        tokenId: parent.id,
+        eventType: "claimed",
+        actorUserId: user.id,
+      });
+
+      return { code: child.code };
     }
 
-    const { data: parentPhotos } = await supabase
-      .from("token_photos")
-      .select("url, sort_order")
-      .eq("token_id", parent.id)
-      .order("sort_order");
-
-    if (parentPhotos?.length) {
-      await supabase.from("token_photos").insert(
-        parentPhotos.map((p) => ({
-          token_id: child.id,
-          url: p.url,
-          sort_order: p.sort_order,
-        })),
-      );
-    }
-
-    await logReferralEvent({
-      tokenId: parent.id,
-      eventType: "claimed",
-      actorUserId: user.id,
-    });
-
-    return { code: child.code };
+    return { error: "Could not generate a unique token code. Please try again." };
+  } catch (err) {
+    console.error("claimToken threw:", err);
+    return {
+      error:
+        err instanceof Error
+          ? err.message
+          : "Something went wrong while claiming this token.",
+    };
   }
-
-  return { error: "Could not generate a unique token code. Please try again." };
 }
 
 /** @deprecated Prefer claimToken then Share on WhatsApp. Kept for any old callers. */

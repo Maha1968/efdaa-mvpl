@@ -44,7 +44,7 @@ export function AdminPurchaseActions({ purchaseId }: AdminPurchaseActionsProps) 
           type="button"
           onClick={handleValidate}
           disabled={isPending}
-          className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+          className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
         >
           {isPending && action === "validate" ? "Validating..." : "Validate"}
         </button>
@@ -52,7 +52,7 @@ export function AdminPurchaseActions({ purchaseId }: AdminPurchaseActionsProps) 
           type="button"
           onClick={handleReject}
           disabled={isPending}
-          className="rounded-xl border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-700 disabled:opacity-60"
+          className="rounded-xl border border-red-300 bg-error-soft px-4 py-2.5 text-sm font-medium text-error disabled:opacity-60"
         >
           {isPending && action === "reject" ? "Rejecting..." : "Reject"}
         </button>
