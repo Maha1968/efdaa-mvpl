@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LocationCapture } from "@/components/location-capture";
 import { ExpiryCountdown } from "@/components/expiry-countdown";
 import { TokenFindsHero } from "@/components/token-finds-hero";
@@ -34,13 +33,14 @@ export function TokenClaimFlow({
   previewOnly = false,
   signInHref,
 }: TokenClaimFlowProps) {
-  const router = useRouter();
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(
     null,
   );
   const [locationText, setLocationText] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Step 1 = Claim CTA; step 2 = location + place; then unlock after success. */
+  const [claimStep, setClaimStep] = useState<"claim" | "location">("claim");
   const [expired, setExpired] = useState(() =>
     isTokenExpired(token.expires_at),
   );
@@ -58,7 +58,7 @@ export function TokenClaimFlow({
     `I found something I think you'll love — ${findLabel}. Open this on EFDAA: ${shareUrl}`,
   )}`;
 
-  async function handleClaim() {
+  async function handleClaimWithLocation() {
     if (actionsDisabled) return;
     if (!coords) {
       setError("Share your location to claim this find.");
@@ -89,8 +89,8 @@ export function TokenClaimFlow({
         return;
       }
 
-      router.replace(`/t/${result.code}`);
-      router.refresh();
+      // Hard navigate so the unlocked token screen always loads (Share + Redeem).
+      window.location.assign(`/t/${result.code}`);
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Something went wrong while claiming.";
@@ -116,8 +116,9 @@ export function TokenClaimFlow({
             {senderFirstName} shared something they think you&apos;ll love.
           </h1>
           <p className="text-supporting mt-2">
-            Share your location to open their find. We only use it to confirm
-            this recommendation — without it you can&apos;t redeem or share.
+            {claimStep === "claim"
+              ? "Claim this find to open it. You’ll share your location next so we can confirm the recommendation."
+              : "Share your location to open their find — without it you can’t redeem or share."}
           </p>
         </div>
 
@@ -139,6 +140,12 @@ export function TokenClaimFlow({
           <p className="rounded-xl bg-warning-soft px-4 py-3 text-sm text-warning">
             This offer has expired — sharing and redeeming are closed.
           </p>
+        ) : claimStep === "claim" ? (
+          <StickyActionBar>
+            <Button fullWidth onClick={() => setClaimStep("location")}>
+              Claim
+            </Button>
+          </StickyActionBar>
         ) : (
           <>
             <LocationCapture
@@ -147,6 +154,7 @@ export function TokenClaimFlow({
               locationText={locationText}
               onLocationTextChange={setLocationText}
               onError={setError}
+              showPlaceName={false}
             />
 
             {error && (
@@ -161,7 +169,7 @@ export function TokenClaimFlow({
             <StickyActionBar>
               <Button
                 fullWidth
-                onClick={handleClaim}
+                onClick={handleClaimWithLocation}
                 disabled={loading || !coords}
                 loading={loading}
               >

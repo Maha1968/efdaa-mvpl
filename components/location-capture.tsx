@@ -9,6 +9,8 @@ type LocationCaptureProps = {
   onLocationTextChange: (text: string) => void;
   onError?: (message: string) => void;
   showPlaceName?: boolean;
+  /** When true, place name is required (not labelled optional). */
+  requirePlaceName?: boolean;
 };
 
 export function LocationCapture({
@@ -18,6 +20,7 @@ export function LocationCapture({
   onLocationTextChange,
   onError,
   showPlaceName = true,
+  requirePlaceName = false,
 }: LocationCaptureProps) {
   const [locating, setLocating] = useState(false);
 
@@ -87,11 +90,15 @@ export function LocationCapture({
             htmlFor="claim-location-text"
             className="mb-1.5 block text-sm font-medium text-text-secondary"
           >
-            Place name <span className="font-normal text-text-muted">(optional)</span>
+            Place name
+            {!requirePlaceName && (
+              <span className="font-normal text-text-muted"> (optional)</span>
+            )}
           </label>
           <input
             id="claim-location-text"
             type="text"
+            required={requirePlaceName}
             value={locationText}
             onChange={(e) => onLocationTextChange(e.target.value)}
             placeholder='e.g. "Phoenix Mall"'
