@@ -127,7 +127,7 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
         <div className="mx-auto mb-5 flex justify-center">
-          <MojodaaLogo height={40} priority />
+          <MojodaaLogo height={56} priority />
         </div>
         <h1 className="text-page-title text-text-primary">
           {mode === "signup" ? "Join MOJODAA" : "Welcome back"}
