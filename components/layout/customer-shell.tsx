@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Gift,
   Home,
   LayoutDashboard,
   Share2,
@@ -93,25 +92,15 @@ export function CustomerBottomNav() {
 export function CustomerHeader({ right }: { right?: React.ReactNode }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur safe-pt">
-      <div className="mx-auto flex max-w-lg flex-col gap-2 px-4 py-3">
-        <div className="flex items-start justify-between gap-3">
-          <Link
-            href="/"
-            className="min-w-0 flex-1 focus-visible:outline-none"
-            aria-label="MOJODAA home"
-          >
-            <MojodaaLogo height={220} priority />
-          </Link>
-          {right ?? (
-            <Link
-              href="/efdaagifts"
-              className="mt-1 flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft"
-            >
-              <Gift className="size-5" aria-hidden />
-              Gifts
-            </Link>
-          )}
-        </div>
+      <div className="mx-auto max-w-lg px-4 py-3">
+        <Link
+          href="/"
+          className="block min-w-0 focus-visible:outline-none"
+          aria-label="MOJODAA home"
+        >
+          <MojodaaLogo height={220} priority />
+        </Link>
+        {right}
       </div>
     </header>
   );
