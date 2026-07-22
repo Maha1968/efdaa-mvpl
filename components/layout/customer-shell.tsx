@@ -89,18 +89,18 @@ export function CustomerBottomNav() {
   );
 }
 
-export function CustomerHeader({ right }: { right?: React.ReactNode }) {
+/** Top bar: MOJODAA logo only — no Gifts or other actions. */
+export function CustomerHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur safe-pt">
       <div className="mx-auto max-w-lg px-4 py-3">
         <Link
           href="/"
-          className="block min-w-0 focus-visible:outline-none"
+          className="block w-full focus-visible:outline-none"
           aria-label="MOJODAA home"
         >
           <MojodaaLogo height={220} priority />
         </Link>
-        {right}
       </div>
     </header>
   );
@@ -110,18 +110,16 @@ export function CustomerShell({
   children,
   showHeader = true,
   showBottomNav = true,
-  headerRight,
   wide = false,
 }: {
   children: React.ReactNode;
   showHeader?: boolean;
   showBottomNav?: boolean;
-  headerRight?: React.ReactNode;
   wide?: boolean;
 }) {
   return (
     <div className="flex min-h-full flex-1 flex-col">
-      {showHeader && <CustomerHeader right={headerRight} />}
+      {showHeader && <CustomerHeader />}
       <main
         className={cn(
           "mx-auto w-full flex-1 px-4 py-6",
