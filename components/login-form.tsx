@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { MojodaaLogo } from "@/components/brand/mojodaa-logo";
 import { cn } from "@/lib/utils/cn";
 
 type AuthMode = "signin" | "signup";
@@ -125,14 +126,11 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
   return (
     <div className="w-full max-w-md">
       <div className="mb-8 text-center">
-        <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-xl font-bold text-white shadow-md">
-          E
+        <div className="mx-auto mb-5 flex justify-center">
+          <MojodaaLogo height={40} priority />
         </div>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-          EFDAA
-        </p>
-        <h1 className="text-page-title mt-3 text-text-primary">
-          {mode === "signup" ? "Join EFDAA" : "Welcome back"}
+        <h1 className="text-page-title text-text-primary">
+          {mode === "signup" ? "Join MOJODAA" : "Welcome back"}
         </h1>
         <p className="text-supporting mt-2">
           {fromShareLink
@@ -300,7 +298,7 @@ export function LoginForm({ nextUrl = "/" }: LoginFormProps) {
       </Card>
 
       <p className="mt-6 text-center text-sm text-text-secondary">
-        {mode === "signup" ? "Already have an account?" : "New to EFDAA?"}{" "}
+        {mode === "signup" ? "Already have an account?" : "New to MOJODAA?"}{" "}
         <button
           type="button"
           onClick={() => {

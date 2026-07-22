@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils/cn";
+import { MojodaaLogo } from "@/components/brand/mojodaa-logo";
 
 export function Card({
   className,
@@ -21,13 +22,14 @@ export function Card({
 }
 
 export function PageHeader({
-  eyebrow = "EFDAA",
+  eyebrow = "brand",
   title,
   description,
   action,
   className,
 }: {
-  eyebrow?: string | null;
+  /** `"brand"` shows the MOJODAA logo; pass a string for text, or null to hide. */
+  eyebrow?: "brand" | string | null;
   title: string;
   description?: string;
   action?: React.ReactNode;
@@ -37,11 +39,13 @@ export function PageHeader({
     <header className={cn("mb-6", className)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          {eyebrow !== null && (
+          {eyebrow === "brand" ? (
+            <MojodaaLogo height={24} className="mt-0.5" />
+          ) : eyebrow !== null && eyebrow !== undefined ? (
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               {eyebrow}
             </p>
-          )}
+          ) : null}
           <h1 className="text-page-title mt-2 text-text-primary">{title}</h1>
           {description && (
             <p className="text-supporting mt-2 max-w-prose">{description}</p>

@@ -42,7 +42,7 @@ export default async function MyRewardsPage() {
   return (
     <CustomerShell wide>
       <PageHeader
-        eyebrow="EFDAA points"
+        eyebrow="MOJODAA points"
         title="My points"
         description="Your lifetime earnings from finds you shared, passed on, or bought through — never other people's identities."
       />

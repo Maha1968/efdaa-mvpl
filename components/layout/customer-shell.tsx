@@ -11,6 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { MojodaaLogo } from "@/components/brand/mojodaa-logo";
 
 const CUSTOMER_TABS: {
   href: string;
@@ -89,26 +90,16 @@ export function CustomerBottomNav() {
   );
 }
 
-export function CustomerHeader({
-  title = "EFDAA",
-  right,
-}: {
-  title?: string;
-  right?: React.ReactNode;
-}) {
+export function CustomerHeader({ right }: { right?: React.ReactNode }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur safe-pt">
       <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-4">
         <Link
           href="/"
-          className="flex items-center gap-2 text-primary focus-visible:outline-none"
+          className="flex items-center focus-visible:outline-none"
+          aria-label="MOJODAA home"
         >
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
-            E
-          </span>
-          <span className="text-sm font-semibold tracking-tight text-text-primary">
-            {title}
-          </span>
+          <MojodaaLogo height={26} priority />
         </Link>
         {right ?? (
           <Link

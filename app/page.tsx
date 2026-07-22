@@ -5,6 +5,7 @@ import { signOut } from "@/lib/actions/auth";
 import { getAppRole } from "@/lib/auth/admin";
 import { redirect } from "next/navigation";
 import { CustomerShell } from "@/components/layout/customer-shell";
+import { MojodaaLogo } from "@/components/brand/mojodaa-logo";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Card } from "@/components/ui/card";
@@ -43,9 +44,7 @@ export default async function Home() {
     return (
       <main className="flex flex-1 flex-col px-4 py-10">
         <div className="mx-auto w-full max-w-md">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-            EFDAA Admin
-          </p>
+          <MojodaaLogo height={24} />
           <h1 className="text-page-title mt-3">Hello, {firstName}</h1>
           <p className="text-supporting mt-2">
             Administrator accounts can only access operations dashboards. They
@@ -90,18 +89,16 @@ export default async function Home() {
     <CustomerShell>
       <div className="space-y-6">
         <header>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-            EFDAA
-          </p>
+          <MojodaaLogo height={28} />
           <h1 className="text-page-title mt-2">Hi, {firstName}</h1>
           <p className="text-supporting mt-2">
             Found something you love? Share it with friends — you both earn
-            EFDAA points when they buy.
+            MOJODAA points when they buy.
           </p>
         </header>
 
         <MetricCard
-          label="Your EFDAA points"
+          label="Your MOJODAA points"
           value={formatRewardAmount(lifetime)}
           hint="Lifetime earnings"
           tone="accent"
@@ -156,7 +153,7 @@ export default async function Home() {
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:underline"
           >
             <Gift className="size-4" aria-hidden />
-            Browse EFDAAgifts
+            Browse MOJODAA gifts
           </Link>
         </Card>
 

@@ -35,7 +35,7 @@ export function CustomerPointsDashboard({
         <p className="mt-1 text-4xl font-semibold tracking-tight text-primary sm:text-5xl">
           {formatRewardAmount(summary.lifetime)}
         </p>
-        <p className="mt-1 text-base text-primary">EFDAA points</p>
+        <p className="mt-1 text-base text-primary">MOJODAA points</p>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-3">
           <button
@@ -80,7 +80,7 @@ export function CustomerPointsDashboard({
           href="/efdaagifts"
           className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3.5 text-base font-medium text-white transition-colors hover:bg-primary-hover sm:w-auto"
         >
-          Buy using EFDAA points
+          Buy using MOJODAA points
         </Link>
       </section>
 

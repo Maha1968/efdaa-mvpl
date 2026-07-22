@@ -345,7 +345,7 @@ export function DemoPresentationView({ data }: { data: DemoPresentationData }) {
         {/* Thesis */}
         <header className="max-w-3xl">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-primary">
-            EFDAA live demo
+            MOJODAA live demo
           </p>
           <h1
             className={`${display.className} mt-4 text-4xl font-semibold leading-[1.1] tracking-tight text-zinc-950 sm:text-5xl lg:text-6xl`}

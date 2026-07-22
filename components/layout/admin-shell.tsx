@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
+import { MojodaaLogo } from "@/components/brand/mojodaa-logo";
 
 const ADMIN_LINKS = [
   { href: "/admin", label: "Overview", icon: LayoutGrid, exact: true },
@@ -63,15 +64,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden w-56 shrink-0 border-r border-border bg-surface lg:flex lg:flex-col">
         <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
-            E
-          </span>
-          <div>
-            <p className="text-sm font-semibold text-text-primary">EFDAA</p>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">
-              Admin
-            </p>
-          </div>
+          <MojodaaLogo height={22} />
+          <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">
+            Admin
+          </p>
         </div>
         <div className="flex-1 p-3">{nav}</div>
         <div className="border-t border-border p-3">
@@ -87,10 +83,8 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
         <div className="flex items-center gap-2">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
-            E
-          </span>
-          <span className="text-sm font-semibold">Admin</span>
+          <MojodaaLogo height={22} />
+          <span className="text-sm font-semibold text-text-muted">Admin</span>
         </div>
         <Button
           variant="ghost"

@@ -40,7 +40,7 @@ export default async function CreateTokenPage() {
     <CustomerShell showBottomNav={false}>
       <PageHeader
         title="Found something you love?"
-        description="What did you discover today? Share it with friends who'd love it too — you both earn EFDAA points when they buy."
+        description="What did you discover today? Share it with friends who'd love it too — you both earn MOJODAA points when they buy."
       />
       <CreateTokenForm
         offers={offers}

@@ -48,7 +48,7 @@ export default async function TokenCreatedPage({
       <PageHeader
         eyebrow="Ready to share"
         title="Share your find"
-        description="Send this link via WhatsApp. Friends who open it see your finds — and you both earn EFDAA points when they buy."
+        description="Send this link via WhatsApp. Friends who open it see your finds — and you both earn MOJODAA points when they buy."
       />
 
       <Card className="space-y-4">

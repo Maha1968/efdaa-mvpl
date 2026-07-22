@@ -7,6 +7,7 @@ import { TokenFindsHero } from "@/components/token-finds-hero";
 import { StickyActionBar } from "@/components/ui/sticky-action-bar";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
+import { MojodaaLogo } from "@/components/brand/mojodaa-logo";
 import { claimToken, markTokenShared } from "@/lib/actions/tokens";
 import { getTokenShareUrl } from "@/lib/utils/app-url";
 import type { TokenWithDetails } from "@/lib/tokens/helpers";
@@ -55,7 +56,7 @@ export function TokenClaimFlow({
 
   const shareUrl = getTokenShareUrl(token.code);
   const whatsappHref = `https://wa.me/?text=${encodeURIComponent(
-    `I found something I think you'll love — ${findLabel}. Open this on EFDAA: ${shareUrl}`,
+    `I found something I think you'll love — ${findLabel}. Open this on MOJODAA: ${shareUrl}`,
   )}`;
 
   async function handleClaimWithLocation() {
@@ -109,9 +110,7 @@ export function TokenClaimFlow({
     return (
       <div className="space-y-6">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-            EFDAA
-          </p>
+          <MojodaaLogo height={22} />
           <h1 className="text-page-title mt-3">
             {senderFirstName} shared something they think you&apos;ll love.
           </h1>
@@ -186,9 +185,7 @@ export function TokenClaimFlow({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-          EFDAA
-        </p>
+        <MojodaaLogo height={22} />
         <h1 className="text-page-title mt-3">
           {token.depth === 0
             ? "Your find is ready to share."
@@ -204,7 +201,7 @@ export function TokenClaimFlow({
           onExpiredChange={setExpired}
         />
         <p className="text-supporting mt-3">
-          When you buy, you both earn EFDAA points. Redeem once anytime before
+          When you buy, you both earn MOJODAA points. Redeem once anytime before
           the timer ends — share as often as you like.
         </p>
         {(token.product?.name || token.category) && (

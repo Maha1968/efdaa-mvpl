@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
 /**
- * EFDAAgifts — placeholder catalog for spending EFDAA points.
+ * MOJODAA gifts — placeholder catalog for spending MOJODAA points.
  * Full gift catalog + redemption comes in a later stage.
  */
 export default async function EfdaaGiftsPage() {
@@ -35,10 +35,10 @@ export default async function EfdaaGiftsPage() {
             <Gift className="size-7" aria-hidden />
           </div>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-            EFDAAgifts
+            MOJODAA gifts
           </h1>
           <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-white/90">
-            Spend your EFDAA points on gifts and finds here. Catalog and
+            Spend your MOJODAA points on gifts and finds here. Catalog and
             checkout arrive in a later stage — keep earning in the meantime.
           </p>
         </div>

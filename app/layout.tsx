@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "EFDAA",
+  title: "MOJODAA",
   description:
-    "Share discoveries you love. Friends earn EFDAA points when they buy — genuine word-of-mouth, made measurable.",
+    "Share discoveries you love. Friends earn MOJODAA points when they buy — genuine word-of-mouth, made measurable.",
 };
 
 export const viewport: Viewport = {
