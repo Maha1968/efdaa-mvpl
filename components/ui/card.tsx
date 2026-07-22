@@ -40,7 +40,7 @@ export function PageHeader({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {eyebrow === "brand" ? (
-            <MojodaaLogo height={48} className="mt-0.5" />
+            <MojodaaLogo height={240} className="mt-0.5" />
           ) : eyebrow !== null && eyebrow !== undefined ? (
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               {eyebrow}

@@ -44,8 +44,8 @@ export default async function Home() {
     return (
       <main className="flex flex-1 flex-col px-4 py-10">
         <div className="mx-auto w-full max-w-md">
-          <MojodaaLogo height={48} />
-          <h1 className="text-page-title mt-3">Hello, {firstName}</h1>
+          <MojodaaLogo height={280} className="mb-4" />
+          <h1 className="text-page-title">Hello, {firstName}</h1>
           <p className="text-supporting mt-2">
             Administrator accounts can only access operations dashboards. They
             cannot recommend products or earn points.
@@ -89,8 +89,7 @@ export default async function Home() {
     <CustomerShell>
       <div className="space-y-6">
         <header>
-          <MojodaaLogo height={56} />
-          <h1 className="text-page-title mt-3">Hi, {firstName}</h1>
+          <h1 className="text-page-title">Hi, {firstName}</h1>
           <p className="text-supporting mt-2">
             Found something you love? Share it with friends — you both earn
             MOJODAA points when they buy.

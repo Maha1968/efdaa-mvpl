@@ -110,7 +110,7 @@ export function TokenClaimFlow({
     return (
       <div className="space-y-6">
         <div>
-          <MojodaaLogo height={48} />
+          <MojodaaLogo height={240} />
           <h1 className="text-page-title mt-3">
             {senderFirstName} shared something they think you&apos;ll love.
           </h1>
@@ -185,7 +185,7 @@ export function TokenClaimFlow({
   return (
     <div className="space-y-6">
       <div>
-        <MojodaaLogo height={48} />
+        <MojodaaLogo height={240} />
         <h1 className="text-page-title mt-3">
           {token.depth === 0
             ? "Your find is ready to share."

@@ -63,9 +63,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-full flex-1 flex-col lg:flex-row">
       {/* Desktop sidebar */}
       <aside className="hidden w-56 shrink-0 border-r border-border bg-surface lg:flex lg:flex-col">
-        <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-          <MojodaaLogo height={36} />
-          <p className="text-[10px] font-medium uppercase tracking-wider text-text-muted">
+        <div className="border-b border-border px-3 py-3">
+          <MojodaaLogo height={180} />
+          <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-text-muted">
             Admin
           </p>
         </div>
@@ -83,8 +83,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       {/* Mobile top bar */}
       <div className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-surface px-4 lg:hidden">
         <div className="flex items-center gap-2">
-          <MojodaaLogo height={36} />
-          <span className="text-sm font-semibold text-text-muted">Admin</span>
+          <div className="min-w-0 flex-1">
+            <MojodaaLogo height={180} />
+          </div>
+          <span className="shrink-0 text-sm font-semibold text-text-muted">Admin</span>
         </div>
         <Button
           variant="ghost"

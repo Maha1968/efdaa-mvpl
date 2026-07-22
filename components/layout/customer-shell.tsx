@@ -93,23 +93,25 @@ export function CustomerBottomNav() {
 export function CustomerHeader({ right }: { right?: React.ReactNode }) {
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur safe-pt">
-      <div className="mx-auto flex min-h-[4.5rem] max-w-lg items-center justify-between gap-3 px-4 py-2">
-        <Link
-          href="/"
-          className="flex min-w-0 flex-1 items-center focus-visible:outline-none"
-          aria-label="MOJODAA home"
-        >
-          <MojodaaLogo height={44} priority />
-        </Link>
-        {right ?? (
+      <div className="mx-auto flex max-w-lg flex-col gap-2 px-4 py-3">
+        <div className="flex items-start justify-between gap-3">
           <Link
-            href="/efdaagifts"
-            className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft"
+            href="/"
+            className="min-w-0 flex-1 focus-visible:outline-none"
+            aria-label="MOJODAA home"
           >
-            <Gift className="size-5" aria-hidden />
-            Gifts
+            <MojodaaLogo height={220} priority />
           </Link>
-        )}
+          {right ?? (
+            <Link
+              href="/efdaagifts"
+              className="mt-1 flex shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-sm font-medium text-accent hover:bg-accent-soft"
+            >
+              <Gift className="size-5" aria-hidden />
+              Gifts
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );

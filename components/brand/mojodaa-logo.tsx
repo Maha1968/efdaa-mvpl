@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils/cn";
 type MojodaaLogoProps = {
   className?: string;
   /**
-   * Display height in px. Wordmark is wide; use ≥48 on page heroes and ≥40 in headers
-   * so the letters stay at least ~2× body text (~15px).
+   * Preferred display height in px (5× previous defaults).
+   * On narrow screens the logo scales down to fit the container width.
    */
   height?: number;
   priority?: boolean;
@@ -14,7 +14,7 @@ type MojodaaLogoProps = {
 /** Brand wordmark for customer-facing screens. */
 export function MojodaaLogo({
   className,
-  height = 56,
+  height = 280,
   priority = false,
 }: MojodaaLogoProps) {
   // Source asset is a wide wordmark (~5.5:1).
@@ -27,9 +27,12 @@ export function MojodaaLogo({
       width={width}
       height={height}
       priority={priority}
-      sizes={`${width}px`}
-      className={cn("max-w-none object-contain object-left", className)}
-      style={{ height: `${height}px`, width: "auto", maxWidth: "none" }}
+      sizes="(max-width: 480px) 100vw, 560px"
+      className={cn(
+        "h-auto w-full max-w-full object-contain object-left",
+        className,
+      )}
+      style={{ maxHeight: `${height}px`, width: "100%", height: "auto" }}
     />
   );
 }
